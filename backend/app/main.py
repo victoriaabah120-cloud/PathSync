@@ -7,7 +7,7 @@ from .routers import assessment, coach, lessons, quiz
 
 app = FastAPI(title="PathSync API")
 
-allowed_origins = [settings.frontend_url, "http://localhost:5173", "http://127.0.0.1:5173"\]
+allowed_origins = [settings.frontend_url, "http://localhost:5173", "http://127.0.0.1:5173"]
 
 app.add_middleware(
     CORSMiddleware,
