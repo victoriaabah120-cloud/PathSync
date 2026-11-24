@@ -1,0 +1,37 @@
+"""The shapes of the data the frontend sends to the backend."""
+from pydantic import BaseModel, Field
+
+
+class Answer(BaseModel):
+    question: str = Field(max_length=300)
+    answers: list[str] = Field(default_factory=list, max_length=6)
+
+
+class AssessmentRequest(BaseModel):
+    answers: list[Answer] = Field(max_length=20)
+    free_text: str = Field(default="", max_length=600)
+
+
+class PathRequest(BaseModel):
+    career_field: str = Field(min_length=2, max_length=80)
+    specialization: str = Field(min_length=2, max_length=120)
+
+
+class LessonRequest(PathRequest):
+    title: str = Field(min_length=2, max_length=200)
+    summary: str = Field(default="", max_length=500)
+
+
+class QuizRequest(PathRequest):
+    title: str = Field(min_length=2, max_length=200)
+    lesson_summary: str = Field(default="", max_length=3000)
+
+
+class ChatMessage(BaseModel):
+    role: str = Field(pattern="^(user|assistant)$")
+    content: str = Field(max_length=2000)
+
+
+class CoachRequest(PathRequest):
+    current_lesson: str = Field(default="", max_length=200)
+    messages: list[ChatMessage] = Field(min_length=1, max_length=14)
