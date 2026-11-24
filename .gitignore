@@ -1,22 +1,8 @@
-# Python
+.env
+*.env.local
 __pycache__/
-*.py[cod]
+*.pyc
 .venv/
-venv/
-
-# Node
 node_modules/
 dist/
-
-# Environment secrets
-.env
-.env.local
-.env.*.local
-
-# Editors
-.vscode/
-.idea/
-
-# Operating system
 .DS_Store
-Thumbs.db
