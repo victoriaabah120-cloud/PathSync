@@ -53,6 +53,5 @@ export const supabase = createClient(url || "http://localhost", key || "missing-
     autoRefreshToken: true,
     // Reads the tokens Supabase puts in the URL after an email confirmation or OAuth redirect.
     detectSessionInUrl: true,
-    storageKey: "pathsync-auth",
   },
 });
