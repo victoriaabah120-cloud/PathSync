@@ -1,4 +1,4 @@
-import { Link, Navigate } from "react-router-dom";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import LandingNav, { scrollToId } from "../components/landing/LandingNav.jsx";
 import HeroScene from "../components/landing/HeroScene.jsx";
@@ -75,6 +75,12 @@ const FOOTER_LINKS = [
 
 export default function Landing() {
   const { session, loading } = useAuth();
+  const [params] = useSearchParams();
+  const verifyCode = params.get("verify");
+
+  // A certificate can be checked from /?verify=CODE. Unlike /verify/CODE this link
+  // works on the static host, which has no rewrite rule for deep links.
+  if (verifyCode) return <Navigate to={`/verify/${encodeURIComponent(verifyCode)}`} replace />;
 
   // Signed-in visitors keep the existing behaviour and go straight to the app.
   if (loading) {

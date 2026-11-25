@@ -31,7 +31,7 @@ export default function Certificate() {
   }, [toast]);
 
   async function share() {
-    const url = `${window.location.origin}/certificate/${id}`;
+    const url = `${window.location.origin}/?verify=${encodeURIComponent(certificate.certificate_code)}`;
     const text = `${certificate.holder_name} completed the ${certificate.course_title} course on PathSync.`;
     try {
       if (navigator.share) {
