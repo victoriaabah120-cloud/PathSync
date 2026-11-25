@@ -35,6 +35,29 @@ async function post(path, body) {
     } catch {
       /* keep the default message */
     }
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
+  }
+  return response.json();
+}
+
+// Public GET (certificate verification needs no login).
+async function get(path) {
+  let response;
+  try {
+    response = await fetch(`${BASE}${path}`, { headers: { Accept: "application/json" } });
+  } catch {
+    throw new Error("Cannot reach the PathSync server. Check that the backend is running.");
+  }
+  if (!response.ok) {
+    let message = "Something went wrong. Please try again.";
+    try {
+      const payload = await response.json();
+      if (typeof payload.detail === "string") message = payload.detail;
+    } catch {
+      /* keep the default message */
+    }
     throw new Error(message);
   }
   return response.json();
@@ -64,3 +87,14 @@ export const coachChat = (careerField, specialization, currentLesson, messages) 
     current_lesson: currentLesson || "",
     messages,
   });
+
+// A certificate is issued by the backend, after it has confirmed the whole course
+// is finished and the final assessment has been passed.
+export const startCourseAssessment = (careerField, specialization) =>
+  post("/course/assessment/start", { career_field: careerField, specialization });
+
+export const submitCourseAssessment = (assessmentId, answers) =>
+  post("/course/assessment/submit", { assessment_id: assessmentId, answers });
+
+export const verifyCertificate = (code) =>
+  get(`/certificates/verify/${encodeURIComponent(code)}`);

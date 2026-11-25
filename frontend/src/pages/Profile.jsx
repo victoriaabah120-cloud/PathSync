@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { supabase } from "../services/supabase.js";
+import { useTheme } from "../context/ThemeContext.jsx";
 
 const GOAL_KEY = "pathsync.dailyGoal";
 const GOALS = [10, 15, 30, 45];
@@ -16,6 +17,7 @@ function initials(name, email) {
 
 export default function Profile() {
   const { user, profile, refreshProfile, signOut } = useAuth();
+  const { preference, setTheme } = useTheme();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(profile.full_name || "");
   const [saving, setSaving] = useState(false);
@@ -180,6 +182,42 @@ export default function Profile() {
             <span>Edit Profile</span>
           </button>
         )}
+      </div>
+
+      <div className="flex flex-col space-y-2">
+        <div className="flex items-center justify-between px-1">
+          <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">Appearance</h3>
+          <span className="font-label-sm text-label-sm text-on-surface-variant">Saved on this device</span>
+        </div>
+        <div className="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
+          <div className="grid grid-cols-3 gap-2" role="group" aria-label="Theme">
+            {[
+              { id: "light", label: "Light", icon: "light_mode" },
+              { id: "dark", label: "Dark", icon: "dark_mode" },
+              { id: "system", label: "System", icon: "contrast" },
+            ].map((option) => {
+              const active = preference === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setTheme(option.id)}
+                  aria-pressed={active}
+                  aria-label={`${option.label} theme`}
+                  data-theme-option={option.id}
+                  className={`flex flex-col items-center gap-1 py-3 rounded-xl font-label-md text-label-md font-semibold transition-colors ${
+                    active
+                      ? "bg-secondary text-on-secondary shadow-sm"
+                      : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[20px]">{option.icon}</span>
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       <div className="flex flex-col space-y-2">

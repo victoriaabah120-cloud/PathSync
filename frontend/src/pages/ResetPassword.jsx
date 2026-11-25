@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { authRedirectUrl, supabase } from "../services/supabase.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import ThemeToggle from "../components/ThemeToggle.jsx";
 
 const INPUT =
   "w-full h-12 pl-11 pr-4 bg-surface-container-lowest text-on-surface rounded-xl font-body-md text-body-md shadow-sm outline-none focus:bg-surface-container-low transition-colors";
@@ -57,6 +58,7 @@ export default function ResetPassword() {
 
   return (
     <div className="bg-surface font-body-md text-on-surface flex flex-col min-h-screen">
+      <ThemeToggle floating />
       <div className="w-full max-w-md mx-auto flex flex-col min-h-screen relative pt-safe pb-safe">
         <main className="flex-1 flex flex-col relative w-full px-gutter bg-surface">
           <div className="flex flex-col w-full pb-safe space-y-6 pt-2">

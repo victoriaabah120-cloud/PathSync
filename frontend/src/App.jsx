@@ -22,6 +22,8 @@ import Certificate from "./pages/Certificate.jsx";
 import Certificates from "./pages/Certificates.jsx";
 import Coach from "./pages/Coach.jsx";
 import Profile from "./pages/Profile.jsx";
+import CourseAssessment from "./pages/CourseAssessment.jsx";
+import VerifyCertificate from "./pages/VerifyCertificate.jsx";
 
 function SetupNotice() {
   return (
@@ -61,6 +63,9 @@ export default function App() {
         {/* Public: a confirmation link can land here if the redirect is set to /auth/callback. */}
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
+        {/* Public: anyone holding a certificate ID can check it. */}
+        <Route path="/verify" element={<VerifyCertificate />} />
+        <Route path="/verify/:code" element={<VerifyCertificate />} />
 
         <Route element={<RequireAuth />}>
           <Route element={<Layout bar="none" mainClass="pt-2 pb-margin-lg" />}>
@@ -91,6 +96,7 @@ export default function App() {
             </Route>
 
             <Route element={<Layout bar="none" mainClass="pt-4 pb-8" />}>
+              <Route path="/course-assessment" element={<CourseAssessment />} />
               <Route path="/quiz/:id" element={<Quiz />} />
               <Route path="/certificate/:id" element={<Certificate />} />
             </Route>

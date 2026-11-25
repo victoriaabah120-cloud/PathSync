@@ -3,14 +3,46 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../services/supabase.js";
 import { generateLesson } from "../services/api.js";
 import Loader from "../components/Loader.jsx";
-import Paragraphs from "../components/Paragraphs.jsx";
+import Markdown from "../components/Markdown.jsx";
 
 const pad = (n) => String(n).padStart(2, "0");
 
+function allText(content) {
+  if (!content) return "";
+  const parts = [
+    content.intro,
+    content.introduction,
+    ...(content.objectives || []),
+    ...(content.sections || []).map((s) => `${s.heading || ""} ${s.body || ""}`),
+    ...(content.examples || []).map((e) => `${e.title || ""} ${e.body || ""}`),
+    ...(content.common_mistakes || []).map((m) => `${m.mistake || m} ${m.fix || ""}`),
+    ...(content.key_points || []),
+    ...(content.key_takeaways || []),
+    ...(content.practice || []).map((p) => `${p.question || ""} ${p.answer || ""}`),
+    ...(content.further_learning || []).map((f) => (typeof f === "string" ? f : `${f.title || ""} ${f.detail || ""}`)),
+  ];
+  return parts.filter(Boolean).join(" ");
+}
+
 function readMinutes(content) {
-  const text = [content?.intro, ...(content?.sections || []).map((s) => s.body), ...(content?.key_points || [])].join(" ");
-  const words = text.split(/\s+/).filter(Boolean).length;
+  const words = allText(content).split(/\s+/).filter(Boolean).length;
   return Math.max(2, Math.round(words / 200));
+}
+
+// A numbered block heading, matching the Stitch lesson layout.
+function BlockHeading({ number, title, icon }) {
+  return (
+    <div className="flex items-center gap-space-xs">
+      <div className="w-7 h-7 rounded-lg bg-surface-container-high flex items-center justify-center text-secondary">
+        {icon ? (
+          <span className="material-symbols-outlined text-[16px]">{icon}</span>
+        ) : (
+          <span className="font-label-lg text-label-lg">{number}</span>
+        )}
+      </div>
+      <h3 className="font-headline-sm text-headline-sm text-on-surface">{title}</h3>
+    </div>
+  );
 }
 
 export default function Lesson() {
@@ -86,10 +118,20 @@ export default function Lesson() {
   }
   if (!lesson) return <Loader text={writing ? "Writing your lesson..." : "Loading..."} />;
 
-  const content = lesson.content;
+  const content = lesson.content || {};
+  const introduction = content.introduction || content.intro || "";
+  const objectives = content.objectives || [];
   const sections = content.sections || [];
-  const keyPoints = content.key_points || [];
+  const examples = content.examples || [];
+  const mistakes = content.common_mistakes || [];
+  const keyPoints = content.key_points || content.key_takeaways || [];
+  const practice = content.practice || [];
+  const further = content.further_learning || [];
   const progress = total ? Math.round((lesson.position / total) * 100) : 0;
+
+  // Section numbers run continuously through the whole lesson.
+  let step = 0;
+  const nextStep = () => pad(++step);
 
   return (
     <div className="flex flex-col w-full pb-24">
@@ -122,23 +164,80 @@ export default function Lesson() {
         </div>
       </div>
 
-      {content.intro && (
-        <p className="font-body-md text-body-md text-on-surface-variant leading-relaxed mb-space-lg">{content.intro}</p>
+      {objectives.length > 0 && (
+        <section className="mb-space-lg rounded-2xl bg-surface-container-low p-space-md ring-1 ring-outline-variant/40">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="material-symbols-outlined text-[20px] text-secondary">flag</span>
+            <h3 className="font-headline-sm text-headline-sm text-on-surface">Learning objectives</h3>
+          </div>
+          <p className="font-body-sm text-body-sm text-on-surface-variant mb-2">
+            By the end of this lesson you should be able to:
+          </p>
+          <ul className="flex flex-col gap-1.5">
+            {objectives.map((objective) => (
+              <li className="flex items-start gap-2" key={objective}>
+                <span className="material-symbols-outlined text-[16px] text-secondary mt-0.5 shrink-0">check_circle</span>
+                <span className="font-body-md text-body-md text-on-surface">{objective}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
-      {sections.map((section, i) => (
-        <section className="flex flex-col gap-space-md mb-space-lg" key={i}>
-          <div className="flex items-center gap-space-xs">
-            <div className="w-7 h-7 rounded-lg bg-surface-container-high flex items-center justify-center text-secondary">
-              <span className="font-label-lg text-label-lg">{pad(i + 1)}</span>
-            </div>
-            <h3 className="font-headline-sm text-headline-sm text-on-surface">{section.heading}</h3>
-          </div>
-          <div className="font-body-md text-body-md text-on-surface-variant leading-relaxed [&>p]:mb-3">
-            <Paragraphs text={section.body} />
+      {introduction && (
+        <section className="mb-space-lg">
+          <Markdown className="md-lesson text-on-surface-variant">{introduction}</Markdown>
+        </section>
+      )}
+
+      {sections.map((section, index) => (
+        <section className="flex flex-col gap-space-md mb-space-lg" key={section.heading || index}>
+          <BlockHeading number={nextStep()} title={section.heading} />
+          <div className="text-on-surface-variant">
+            <Markdown>{section.body}</Markdown>
           </div>
         </section>
       ))}
+
+      {examples.length > 0 && (
+        <section className="flex flex-col gap-space-md mb-space-lg">
+          <BlockHeading number={nextStep()} title="Worked examples" />
+          <div className="flex flex-col gap-space-sm">
+            {examples.map((example, index) => (
+              <div className="rounded-xl bg-surface-container-low p-space-md" key={example.title || index}>
+                <p className="font-label-lg text-label-lg font-bold text-on-surface mb-1.5">{example.title}</p>
+                <Markdown>{example.body}</Markdown>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {mistakes.length > 0 && (
+        <section className="flex flex-col gap-space-md mb-space-lg">
+          <BlockHeading number={nextStep()} title="Common mistakes" />
+          <div className="flex flex-col gap-space-sm">
+            {mistakes.map((item, index) => {
+              const mistake = typeof item === "string" ? item : item.mistake;
+              const fix = typeof item === "string" ? "" : item.fix;
+              return (
+                <div className="rounded-xl bg-surface-container-low p-space-sm" key={mistake || index}>
+                  <div className="flex items-start gap-2">
+                    <span className="material-symbols-outlined text-[18px] text-error mt-0.5 shrink-0">error</span>
+                    <p className="font-body-md text-body-md text-on-surface font-semibold">{mistake}</p>
+                  </div>
+                  {fix && (
+                    <div className="flex items-start gap-2 mt-1.5 pl-6">
+                      <span className="material-symbols-outlined text-[16px] text-secondary mt-0.5 shrink-0">lightbulb</span>
+                      <p className="font-body-sm text-body-sm text-on-surface-variant">{fix}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <section className="relative w-full h-36 rounded-xl overflow-hidden flex items-end p-space-sm mb-space-lg bg-gradient-to-br from-secondary-container via-secondary to-primary-container">
         <span className="material-symbols-outlined absolute inset-0 m-auto w-fit h-fit text-[56px] text-white/25">
@@ -157,13 +256,8 @@ export default function Lesson() {
       </section>
 
       {keyPoints.length > 0 && (
-        <section className="flex flex-col gap-space-md mb-space-xl">
-          <div className="flex items-center gap-space-xs">
-            <div className="w-7 h-7 rounded-lg bg-surface-container-high flex items-center justify-center text-secondary">
-              <span className="font-label-lg text-label-lg">{pad(sections.length + 1)}</span>
-            </div>
-            <h3 className="font-headline-sm text-headline-sm text-on-surface">Key Points to Remember</h3>
-          </div>
+        <section className="flex flex-col gap-space-md mb-space-lg">
+          <BlockHeading number={nextStep()} title="Key takeaways" />
           <div className="bg-surface-container rounded-xl p-space-md flex flex-col gap-space-sm">
             {keyPoints.map((point, i) => (
               <div className="flex items-start gap-space-sm" key={i}>
@@ -174,6 +268,47 @@ export default function Lesson() {
               </div>
             ))}
           </div>
+        </section>
+      )}
+
+      {practice.length > 0 && (
+        <section className="flex flex-col gap-space-md mb-space-lg">
+          <BlockHeading number={nextStep()} title="Check your understanding" />
+          <div className="flex flex-col gap-space-sm">
+            {practice.map((item, index) => (
+              <details className="rounded-xl bg-surface-container-low p-space-sm group" key={item.question || index}>
+                <summary className="font-body-md text-body-md text-on-surface font-semibold cursor-pointer list-none flex items-start gap-2">
+                  <span className="material-symbols-outlined text-[18px] text-secondary mt-0.5 shrink-0">help</span>
+                  <span className="flex-1">{item.question}</span>
+                  <span className="material-symbols-outlined text-[18px] text-on-surface-variant group-open:rotate-180 transition-transform shrink-0">
+                    expand_more
+                  </span>
+                </summary>
+                {item.answer && (
+                  <div className="mt-2 pl-7">
+                    <Markdown className="text-on-surface-variant">{item.answer}</Markdown>
+                  </div>
+                )}
+              </details>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {further.length > 0 && (
+        <section className="flex flex-col gap-space-md mb-space-xl">
+          <BlockHeading number={nextStep()} title="Further learning" />
+          <ul className="flex flex-col gap-2">
+            {further.map((item, index) => {
+              const text = typeof item === "string" ? item : [item.title, item.detail].filter(Boolean).join(" — ");
+              return (
+                <li className="flex items-start gap-2" key={text || index}>
+                  <span className="material-symbols-outlined text-[16px] text-secondary mt-0.5 shrink-0">north_east</span>
+                  <span className="font-body-md text-body-md text-on-surface-variant">{text}</span>
+                </li>
+              );
+            })}
+          </ul>
         </section>
       )}
 

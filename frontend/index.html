@@ -4,6 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#f8f9ff" />
+    <script>
+      // Apply the saved (or device) theme before the first paint.
+      (function () {
+        try {
+          var stored = localStorage.getItem("pathsync.theme");
+          var dark = stored ? stored === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+          if (dark) document.documentElement.classList.add("dark");
+          document.documentElement.style.colorScheme = dark ? "dark" : "light";
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta && dark) meta.setAttribute("content", "#0b0716");
+        } catch (e) {}
+      })();
+    </script>
     <meta
       name="description"
       content="PathSync helps you discover what you are good at, learn the skills for it, and track your progress."

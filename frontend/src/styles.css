@@ -6,12 +6,120 @@
 @tailwind utilities;
 
 @layer base {
-  html { -webkit-text-size-adjust: 100%; }
+  /* Light theme (the Stitch palette). Dark overrides live in the .dark block below. */
+:root {
+  --ps-background: 248 249 255;
+  --ps-error: 186 26 26;
+  --ps-error-container: 255 218 214;
+  --ps-inverse-on-surface: 234 241 255;
+  --ps-inverse-primary: 190 198 224;
+  --ps-inverse-surface: 33 49 69;
+  --ps-on-background: 11 28 48;
+  --ps-on-error: 255 255 255;
+  --ps-on-error-container: 147 0 10;
+  --ps-on-primary: 255 255 255;
+  --ps-on-primary-container: 124 131 155;
+  --ps-on-primary-fixed: 19 27 46;
+  --ps-on-primary-fixed-variant: 63 70 92;
+  --ps-on-secondary: 255 255 255;
+  --ps-on-secondary-container: 255 251 255;
+  --ps-on-secondary-fixed: 37 0 90;
+  --ps-on-secondary-fixed-variant: 90 0 198;
+  --ps-on-surface: 11 28 48;
+  --ps-on-surface-variant: 69 70 77;
+  --ps-on-tertiary: 255 255 255;
+  --ps-on-tertiary-container: 0 142 191;
+  --ps-on-tertiary-fixed: 0 30 44;
+  --ps-on-tertiary-fixed-variant: 0 76 105;
+  --ps-outline: 118 119 125;
+  --ps-outline-variant: 198 198 205;
+  --ps-primary: 0 0 0;
+  --ps-primary-container: 19 27 46;
+  --ps-primary-fixed: 218 226 253;
+  --ps-primary-fixed-dim: 190 198 224;
+  --ps-secondary: 113 42 226;
+  --ps-secondary-container: 138 76 252;
+  --ps-secondary-fixed: 234 221 255;
+  --ps-secondary-fixed-dim: 210 187 255;
+  --ps-surface: 248 249 255;
+  --ps-surface-bright: 248 249 255;
+  --ps-surface-container: 229 238 255;
+  --ps-surface-container-high: 220 233 255;
+  --ps-surface-container-highest: 211 228 254;
+  --ps-surface-container-low: 239 244 255;
+  --ps-surface-container-lowest: 255 255 255;
+  --ps-surface-dim: 203 219 245;
+  --ps-surface-tint: 86 94 116;
+  --ps-surface-variant: 211 228 254;
+  --ps-tertiary: 0 0 0;
+  --ps-tertiary-container: 0 30 44;
+  --ps-tertiary-fixed: 196 231 255;
+  --ps-tertiary-fixed-dim: 123 208 255;
+}
+
+.dark {
+  --ps-background: 11 7 22;
+  --ps-error: 255 180 171;
+  --ps-error-container: 92 26 23;
+  --ps-inverse-on-surface: 23 17 42;
+  --ps-inverse-primary: 86 94 116;
+  --ps-inverse-surface: 236 231 251;
+  --ps-on-background: 236 231 251;
+  --ps-on-error: 59 9 8;
+  --ps-on-error-container: 255 218 214;
+  --ps-on-primary: 23 17 42;
+  --ps-on-primary-container: 185 170 214;
+  --ps-on-primary-fixed: 236 231 251;
+  --ps-on-primary-fixed-variant: 203 178 255;
+  --ps-on-secondary: 28 11 54;
+  --ps-on-secondary-container: 245 239 255;
+  --ps-on-secondary-fixed: 233 220 255;
+  --ps-on-secondary-fixed-variant: 203 178 255;
+  --ps-on-surface: 236 231 251;
+  --ps-on-surface-variant: 185 170 214;
+  --ps-on-tertiary: 0 52 74;
+  --ps-on-tertiary-container: 123 208 255;
+  --ps-on-tertiary-fixed: 0 30 44;
+  --ps-on-tertiary-fixed-variant: 0 76 105;
+  --ps-outline: 143 131 173;
+  --ps-outline-variant: 58 47 87;
+  --ps-primary: 236 231 251;
+  --ps-primary-container: 34 26 61;
+  --ps-primary-fixed: 43 33 73;
+  --ps-primary-fixed-dim: 58 47 87;
+  --ps-secondary: 167 139 250;
+  --ps-secondary-container: 139 92 246;
+  --ps-secondary-fixed: 44 26 82;
+  --ps-secondary-fixed-dim: 61 38 112;
+  --ps-surface: 11 7 22;
+  --ps-surface-bright: 36 27 64;
+  --ps-surface-container: 34 26 61;
+  --ps-surface-container-high: 43 33 73;
+  --ps-surface-container-highest: 53 42 88;
+  --ps-surface-container-low: 22 16 39;
+  --ps-surface-container-lowest: 21 16 36;
+  --ps-surface-dim: 11 7 22;
+  --ps-surface-tint: 185 166 230;
+  --ps-surface-variant: 42 33 69;
+  --ps-tertiary: 123 208 255;
+  --ps-tertiary-container: 6 43 61;
+  --ps-tertiary-fixed: 196 231 255;
+  --ps-tertiary-fixed-dim: 123 208 255;
+}
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
   body {
     font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
-    background-color: #f8f9ff;
-    color: #0b1c30;
+    background-color: rgb(var(--ps-surface));
+    color: rgb(var(--ps-on-surface));
     -webkit-font-smoothing: antialiased;
+    transition: background-color 0.25s ease, color 0.25s ease;
   }
   .material-symbols-outlined {
     font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
@@ -35,8 +143,8 @@
 .ps-spinner {
   width: 36px;
   height: 36px;
-  border: 3px solid #e5eeff;
-  border-top-color: #712ae2;
+  border: 3px solid rgb(var(--ps-surface-container));
+  border-top-color: rgb(var(--ps-secondary));
   border-radius: 50%;
   animation: ps-spin 0.9s linear infinite;
 }
@@ -51,3 +159,113 @@
   body { background: #fff; }
   main { padding: 0 !important; }
 }
+
+/* ---------- rendered Markdown (AI Coach answers and lesson bodies) ---------- */
+.md {
+  font-size: 14px;
+  line-height: 1.65;
+  color: rgb(var(--ps-on-surface));
+  overflow-wrap: anywhere;
+}
+.md > * + * { margin-top: 0.72em; }
+.md h1, .md h2, .md h3, .md h4, .md h5, .md h6 {
+  font-weight: 700;
+  line-height: 1.32;
+  color: rgb(var(--ps-on-surface));
+  margin-top: 0.95em;
+}
+.md > :first-child { margin-top: 0; }
+.md h1 { font-size: 1.18rem; letter-spacing: -0.01em; }
+.md h2 { font-size: 1.06rem; letter-spacing: -0.01em; }
+.md h3 { font-size: 0.97rem; }
+.md h4, .md h5, .md h6 { font-size: 0.9rem; }
+.md p { margin: 0; }
+.md strong { font-weight: 700; color: rgb(var(--ps-on-surface)); }
+.md em { font-style: italic; }
+.md ul, .md ol { padding-left: 1.2rem; }
+.md ul { list-style: disc; }
+.md ol { list-style: decimal; }
+.md li { margin: 0.22em 0; padding-left: 0.15rem; }
+.md li::marker { color: rgb(var(--ps-secondary)); }
+.md li > ul, .md li > ol { margin: 0.2em 0 0.2em; }
+.md li > p { margin: 0; }
+.md a {
+  color: rgb(var(--ps-secondary));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 600;
+}
+.md code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.86em;
+  background: rgb(var(--ps-surface-container));
+  border: 1px solid rgb(var(--ps-outline-variant) / 0.5);
+  padding: 0.1em 0.34em;
+  border-radius: 0.35rem;
+}
+.md pre {
+  background: rgb(var(--ps-surface-container-high));
+  border: 1px solid rgb(var(--ps-outline-variant) / 0.55);
+  border-radius: 0.75rem;
+  padding: 0.8rem 0.9rem;
+  overflow-x: auto;
+}
+.md pre code {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-size: 0.82em;
+  line-height: 1.55;
+  white-space: pre;
+  color: rgb(var(--ps-on-surface));
+}
+.md blockquote {
+  border-left: 3px solid rgb(var(--ps-secondary));
+  background: rgb(var(--ps-surface-container-low));
+  color: rgb(var(--ps-on-surface-variant));
+  padding: 0.5rem 0.8rem;
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+.md blockquote p { margin: 0; }
+.md hr {
+  border: 0;
+  border-top: 1px solid rgb(var(--ps-outline-variant) / 0.6);
+  margin: 1rem 0;
+}
+.md-table-wrap {
+  overflow-x: auto;
+  border-radius: 0.6rem;
+  border: 1px solid rgb(var(--ps-outline-variant) / 0.5);
+}
+.md table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82em;
+}
+.md th, .md td {
+  border-bottom: 1px solid rgb(var(--ps-outline-variant) / 0.45);
+  border-right: 1px solid rgb(var(--ps-outline-variant) / 0.45);
+  padding: 0.42rem 0.55rem;
+  text-align: left;
+  vertical-align: top;
+}
+.md tr:last-child td { border-bottom: 0; }
+.md th:last-child, .md td:last-child { border-right: 0; }
+.md th {
+  background: rgb(var(--ps-surface-container));
+  font-weight: 700;
+  white-space: nowrap;
+}
+.md del { opacity: 0.72; }
+.md input[type="checkbox"] { margin-right: 0.4rem; accent-color: rgb(var(--ps-secondary)); }
+.md-math-block { display: block; overflow-x: auto; overflow-y: hidden; padding: 0.35rem 0; }
+.md-math-inline { display: inline-block; vertical-align: middle; }
+.md-math-fallback {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: rgb(var(--ps-surface-container));
+}
+.katex { font-size: 1.02em; }
+.katex-display { margin: 0.35rem 0; }
+/* the chat bubble keeps its own padding, so tighten the first/last block */
+.md-chat > :first-child { margin-top: 0; }
+.md-chat > :last-child { margin-bottom: 0; }

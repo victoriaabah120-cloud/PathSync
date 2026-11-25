@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { authRedirectUrl, supabase } from "../services/supabase.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import ThemeToggle from "../components/ThemeToggle.jsx";
 
 // Shown when a session exists but the account's email is still unconfirmed.
 export default function VerifyEmail() {
@@ -40,6 +41,7 @@ export default function VerifyEmail() {
 
   return (
     <div className="bg-surface font-body-md text-on-surface flex flex-col min-h-screen">
+      <ThemeToggle floating />
       <div className="w-full max-w-md mx-auto flex flex-col min-h-screen relative pt-safe pb-safe">
         <main className="flex-1 flex flex-col relative w-full px-gutter bg-surface">
           <div className="flex flex-col w-full pb-safe space-y-6 pt-2">

@@ -32,7 +32,7 @@ export default function Certificate() {
 
   async function share() {
     const url = `${window.location.origin}/certificate/${id}`;
-    const text = `${certificate.holder_name} completed ${certificate.lesson_title} on PathSync.`;
+    const text = `${certificate.holder_name} completed the ${certificate.course_title} course on PathSync.`;
     try {
       if (navigator.share) {
         await navigator.share({ title: "PathSync certificate", text, url });
@@ -89,9 +89,9 @@ export default function Certificate() {
         <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-secondary-fixed text-secondary mb-space-xs shadow-sm">
           <span className="material-symbols-outlined text-[26px] filled">verified</span>
         </div>
-        <h2 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface mb-1">Lesson Completed!</h2>
+        <h2 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface mb-1">Course Completed!</h2>
         <p className="font-body-md text-body-md text-on-surface-variant max-w-xs mx-auto leading-relaxed">
-          You have successfully finished the module and demonstrated mastery of {certificate.specialization}.
+          You completed every lesson in {certificate.specialization} and passed the final assessment.
         </p>
       </div>
 
@@ -124,13 +124,14 @@ export default function Certificate() {
             {certificate.holder_name}
           </h3>
           <p className="font-body-sm text-body-sm text-on-surface-variant max-w-[280px] mb-space-sm leading-snug">
-            has successfully completed the structured module on
+            has successfully completed the full course
           </p>
 
           <div className="w-full rounded-xl bg-surface-container-lowest p-space-sm shadow-sm mb-space-sm">
-            <h4 className="font-headline-sm text-headline-sm font-bold text-on-surface mb-0.5">{certificate.lesson_title}</h4>
+            <h4 className="font-headline-sm text-headline-sm font-bold text-on-surface mb-0.5">{certificate.course_title}</h4>
             <p className="font-label-md text-label-md text-on-surface-variant">
-              {certificate.specialization} • Quiz score {certificate.score}%
+              {certificate.specialization} • Final assessment {certificate.score}%
+              {certificate.lessons_completed ? ` • ${certificate.lessons_completed} lessons` : ""}
             </p>
           </div>
 
@@ -156,7 +157,8 @@ export default function Certificate() {
       </div>
 
       <p className="font-body-sm text-body-sm text-on-surface-variant text-center mb-space-md">
-        A PathSync certificate shows you finished a lesson and passed its quiz. It is not an accredited qualification.
+        A PathSync certificate shows you completed every lesson in this course and passed its final assessment.
+        Anyone can confirm it with the certificate ID. It is not an accredited qualification.
       </p>
 
       <div className="flex flex-col gap-space-sm w-full mb-space-lg no-print">
@@ -176,6 +178,13 @@ export default function Certificate() {
           <span className="material-symbols-outlined text-[20px]">share</span>
           <span>Share Achievement</span>
         </button>
+        <Link
+          to={`/verify/${certificate.certificate_code}`}
+          className="w-full h-12 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-lg text-label-lg flex items-center justify-center gap-space-xs transition-all active:scale-[0.98]"
+        >
+          <span className="material-symbols-outlined text-[20px]">verified</span>
+          <span>Verify this certificate</span>
+        </Link>
       </div>
 
       <div className="w-full text-center">

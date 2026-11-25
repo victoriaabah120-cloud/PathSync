@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Loader from "../components/Loader.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+import ThemeToggle from "../components/ThemeToggle.jsx";
 
 // Landing page for a confirmation link that points at /auth/callback.
 // The exchange itself happens in AuthContext, before the session is read.
@@ -28,6 +29,7 @@ export default function AuthCallback() {
 
   return (
     <div className="bg-surface font-body-md text-on-surface flex flex-col min-h-screen">
+      <ThemeToggle floating />
       <div className="w-full max-w-md mx-auto flex flex-col min-h-screen relative pt-safe pb-safe">
         <main className="flex-1 flex flex-col relative w-full px-gutter bg-surface">
           <div className="flex flex-col w-full pb-safe space-y-6 pt-2">

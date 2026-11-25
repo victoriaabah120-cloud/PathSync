@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import ThemeToggle from "./ThemeToggle.jsx";
 
 function initials(name, email) {
   const source = (name || email || "").trim();
@@ -43,6 +44,7 @@ export default function AppBar({ variant = "brand", title = "", back = "", right
 
         <div className="flex items-center gap-space-sm">
           {right}
+          <ThemeToggle />
           {variant === "brand" && (
             <Link
               to="/profile"

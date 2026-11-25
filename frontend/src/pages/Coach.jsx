@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { supabase } from "../services/supabase.js";
 import { coachChat } from "../services/api.js";
+import Markdown from "../components/Markdown.jsx";
 
 const SUGGESTIONS = [
   { text: "Explain my current lesson in simpler words", icon: "menu_book" },
@@ -124,8 +125,8 @@ export default function Coach() {
                 <span className="material-symbols-outlined text-[15px] filled">auto_awesome</span>
               </div>
               <div className="flex flex-col space-y-1 min-w-0">
-                <div className="bg-surface-container-lowest p-space-md rounded-2xl rounded-tl-sm shadow-sm text-on-surface">
-                  <p className="font-body-md text-body-md leading-relaxed whitespace-pre-wrap break-words">{m.content}</p>
+                <div className="bg-surface-container-lowest p-space-md rounded-2xl rounded-tl-sm shadow-sm text-on-surface min-w-0">
+                  <Markdown className="md-chat">{m.content}</Markdown>
                 </div>
                 <span className="font-label-sm text-label-sm text-outline px-1">
                   {clock(m.at)} · PathSync Coach

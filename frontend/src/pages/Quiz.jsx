@@ -10,7 +10,7 @@ const PASS_MARK = 60; // percent needed to pass
 export default function Quiz() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const [lesson, setLesson] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [error, setError] = useState("");
@@ -19,7 +19,7 @@ export default function Quiz() {
   const [score, setScore] = useState(0);
   const [result, setResult] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [certificateId, setCertificateId] = useState(null);
+  const [courseComplete, setCourseComplete] = useState(false);
   const loadedFor = useRef(null);
 
   async function load() {
@@ -40,7 +40,7 @@ export default function Quiz() {
     let quiz = data.quiz;
     if (!Array.isArray(quiz) || quiz.length === 0) {
       try {
-        const summary = [data.content.intro, ...(data.content.key_points || [])].join(" ");
+        const summary = [data.content.intro, ...(data.content.key_points || [])].join(" ").slice(0, 6000);
         const response = await generateQuiz(data.career_field, data.specialization, data.title, summary);
         quiz = response.questions;
         await supabase.from("user_lessons").update({ quiz }).eq("id", id);
@@ -82,31 +82,25 @@ export default function Quiz() {
 
     setSaving(true);
     try {
-      if (lesson.status === "completed") {
-        const { data } = await supabase.from("certificates").select("id").eq("lesson_id", lesson.id).maybeSingle();
-        setCertificateId(data?.id || null);
-      } else {
+      if (lesson.status !== "completed") {
         await supabase.from("user_lessons")
           .update({ status: "completed", score: percent, completed_at: new Date().toISOString() })
           .eq("id", lesson.id);
         await supabase.from("user_lessons")
           .update({ status: "current" })
           .eq("user_id", user.id).eq("position", lesson.position + 1).eq("status", "locked");
-
-        const holder = profile?.full_name || user.email.split("@")[0];
-        const { data: certificate, error: certError } = await supabase.from("certificates").insert({
-          user_id: user.id,
-          lesson_id: lesson.id,
-          holder_name: holder,
-          lesson_title: lesson.title,
-          career_field: lesson.career_field,
-          specialization: lesson.specialization,
-          score: percent,
-          certificate_code: `PS-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
-        }).select("id").single();
-        if (certError) throw certError;
-        setCertificateId(certificate.id);
       }
+
+      // Passing a lesson quiz never issues a certificate. Check whether this was the
+      // last lesson; the certificate itself comes from the final course assessment.
+      const { data } = await supabase
+        .from("user_lessons")
+        .select("id,status")
+        .eq("user_id", user.id)
+        .eq("career_field", lesson.career_field)
+        .eq("specialization", lesson.specialization);
+      const rows = data || [];
+      setCourseComplete(rows.length > 0 && rows.every((row) => row.status === "completed"));
     } catch (err) {
       setError(err.message || "We could not save your result.");
     } finally {
@@ -197,18 +191,31 @@ export default function Quiz() {
         <div className="mt-space-lg flex flex-col gap-space-sm">
           {passed ? (
             saving ? (
-              <Loader text="Saving your certificate..." />
+              <Loader text="Saving your result..." />
             ) : (
               <>
-                {certificateId && (
+                {courseComplete ? (
                   <Link
-                    to={`/certificate/${certificateId}`}
+                    to="/course-assessment"
                     className="w-full h-12 bg-secondary text-on-secondary rounded-xl font-label-lg text-label-lg font-bold flex items-center justify-center gap-2 shadow-md"
                   >
-                    <span>View my certificate</span>
+                    <span>Take the final assessment</span>
+                    <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
+                  </Link>
+                ) : (
+                  <Link
+                    to="/learn"
+                    className="w-full h-12 bg-secondary text-on-secondary rounded-xl font-label-lg text-label-lg font-bold flex items-center justify-center gap-2 shadow-md"
+                  >
+                    <span>Continue to the next lesson</span>
                     <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
                   </Link>
                 )}
+                <p className="font-body-sm text-body-sm text-on-surface-variant text-center px-2">
+                  {courseComplete
+                    ? "Every lesson is complete. Your certificate is issued after you pass the final assessment."
+                    : "This lesson is done. Your certificate comes at the end of the whole course."}
+                </p>
                 <Link
                   to="/learn"
                   className="w-full h-12 rounded-xl bg-surface-container text-on-surface font-label-lg text-label-lg font-semibold flex items-center justify-center"

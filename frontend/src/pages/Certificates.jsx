@@ -193,9 +193,9 @@ export default function Certificates() {
               <div className="p-space-md -mt-2 relative z-10 flex flex-col space-y-space-sm">
                 <div>
                   <span className="font-label-sm text-label-sm text-secondary font-semibold uppercase tracking-wider">
-                    {cert.specialization} • {cert.score}% quiz
+                    {cert.specialization} • Final assessment {cert.score}%
                   </span>
-                  <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface mt-0.5">{cert.lesson_title}</h3>
+                  <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface mt-0.5">{cert.course_title}</h3>
                 </div>
                 <div className="flex items-center justify-between text-on-surface-variant font-body-sm text-body-sm pt-1 gap-2">
                   <div className="flex items-center gap-1.5 min-w-0">

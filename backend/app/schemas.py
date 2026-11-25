@@ -24,7 +24,7 @@ class LessonRequest(PathRequest):
 
 class QuizRequest(PathRequest):
     title: str = Field(min_length=2, max_length=200)
-    lesson_summary: str = Field(default="", max_length=3000)
+    lesson_summary: str = Field(default="", max_length=8000)
 
 
 class ChatMessage(BaseModel):
@@ -35,3 +35,12 @@ class ChatMessage(BaseModel):
 class CoachRequest(PathRequest):
     current_lesson: str = Field(default="", max_length=200)
     messages: list[ChatMessage] = Field(min_length=1, max_length=14)
+
+
+class CourseRequest(PathRequest):
+    """A whole course is identified by its field and specialisation."""
+
+
+class AssessmentSubmit(BaseModel):
+    assessment_id: str = Field(min_length=8, max_length=64)
+    answers: list[int | None] = Field(default_factory=list, max_length=30)

@@ -9,6 +9,7 @@ const pad = (n) => String(n).padStart(2, "0");
 export default function Learn() {
   const { user, profile } = useAuth();
   const [lessons, setLessons] = useState(null);
+  const [certificate, setCertificate] = useState(null);
 
   useEffect(() => {
     supabase
@@ -18,6 +19,20 @@ export default function Learn() {
       .order("position")
       .then(({ data }) => setLessons(data || []));
   }, [user.id]);
+
+  // The certificate only exists once the whole course is finished.
+  useEffect(() => {
+    if (!lessons || lessons.length === 0) return;
+    if (!lessons.every((lesson) => lesson.status === "completed")) return;
+    supabase
+      .from("certificates")
+      .select("id,certificate_code,issued_at,score")
+      .eq("user_id", user.id)
+      .eq("career_field", profile.career_field)
+      .eq("specialization", profile.specialization)
+      .limit(1)
+      .then(({ data }) => setCertificate((data || [])[0] || null));
+  }, [lessons, user.id, profile.career_field, profile.specialization]);
 
   if (lessons === null) return <Loader />;
 
@@ -208,6 +223,33 @@ export default function Learn() {
           );
         })}
       </div>
+
+      {lessons.length > 0 && completed === lessons.length && (
+        <div className="rounded-2xl bg-surface-container-lowest shadow-md p-space-md ring-1 ring-secondary/30">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-secondary-fixed text-secondary flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-[22px] filled">workspace_premium</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-headline-sm text-headline-sm text-on-surface font-bold">
+                {certificate ? "Certificate earned" : "Final assessment"}
+              </h3>
+              <p className="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
+                {certificate
+                  ? `Issued ${new Date(certificate.issued_at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })} · ${certificate.certificate_code}`
+                  : "Every lesson is complete. Pass the final assessment to earn your course certificate."}
+              </p>
+            </div>
+          </div>
+          <Link
+            to={certificate ? `/certificate/${certificate.id}` : "/course-assessment"}
+            className="mt-3 w-full h-11 rounded-xl bg-secondary text-on-secondary font-label-lg text-label-lg font-bold flex items-center justify-center gap-2 shadow-sm"
+          >
+            <span>{certificate ? "View my certificate" : "Start the final assessment"}</span>
+            <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
