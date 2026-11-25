@@ -1,6 +1,15 @@
-import { supabase } from "./supabase.js";
+import { isLocalHost, supabase } from "./supabase.js";
 
-const BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000").replace(/\/$/, "");
+// Same rule as the auth redirect: the dev server talks to a local API, the deployed
+// site talks to the deployed API. A missing env var can no longer point production
+// at localhost.
+const LOCAL_API_URL = "http://localhost:8000";
+const PRODUCTION_API_URL = "https://pathsync.onrender.com";
+
+const configuredApiUrl = (import.meta.env.VITE_API_BASE_URL || "").trim();
+const BASE = (
+  configuredApiUrl || (isLocalHost() ? LOCAL_API_URL : PRODUCTION_API_URL)
+).replace(/\/+$/, "");
 
 // Sends a POST request to the PathSync backend with the user's login token.
 async function post(path, body) {
