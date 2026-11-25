@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { SUPABASE_KEY, SUPABASE_URL, authRedirectUrl, supabase } from "../services/supabase.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
@@ -17,7 +17,8 @@ const INPUT =
 
 export default function Login() {
   const { session, loading, authError, clearAuthError } = useAuth();
-  const [mode, setMode] = useState("signin");
+  const [searchParams] = useSearchParams();
+  const [mode, setMode] = useState(searchParams.get("mode") === "signup" ? "signup" : "signin");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

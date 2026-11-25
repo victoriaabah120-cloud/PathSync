@@ -4,6 +4,7 @@ import Layout from "./components/Layout.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 import { supabaseReady } from "./services/supabase.js";
 
+import Landing from "./pages/Landing.jsx";
 import Login from "./pages/Login.jsx";
 import ResetPassword from "./pages/ResetPassword.jsx";
 import AuthCallback from "./pages/AuthCallback.jsx";
@@ -53,6 +54,8 @@ export default function App() {
   return (
     <RecoveryRedirect>
       <Routes>
+        {/* Public welcome page. Signed-in visitors are sent on to the app. */}
+        <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         {/* Public: a confirmation link can land here if the redirect is set to /auth/callback. */}
