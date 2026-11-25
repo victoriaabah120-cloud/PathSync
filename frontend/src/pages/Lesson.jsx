@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../services/supabase.js";
 import { generateLesson } from "../services/api.js";
+import Icon from "../components/Icon.jsx";
 import Loader from "../components/Loader.jsx";
 import Paragraphs from "../components/Paragraphs.jsx";
 
@@ -49,10 +50,10 @@ export default function Lesson() {
 
   if (error) {
     return (
-      <div className="stack">
-        <Link to="/learn" className="back">Back to lessons</Link>
+      <div className="stack" style={{ marginTop: 8 }}>
         <div className="error" role="alert">{error}</div>
         <button className="btn btn-primary btn-block" onClick={() => { loadedFor.current = id; load(); }}>Try again</button>
+        <Link to="/learn" className="btn btn-ghost btn-block">Back to lessons</Link>
       </div>
     );
   }
@@ -60,11 +61,14 @@ export default function Lesson() {
 
   const content = lesson.content;
   return (
-    <div className="lesson-body">
-      <Link to="/learn" className="back">Back to lessons</Link>
-      <span className="chip">Lesson {lesson.position}</span>
-      <h1>{lesson.title}</h1>
-      <p className="muted">{content.intro}</p>
+    <div className="lesson-body" style={{ marginTop: -4 }}>
+      <div className="row" style={{ marginBottom: 10 }}>
+        <span className="chip">Lesson {lesson.position}</span>
+        <span className="muted small" style={{ fontWeight: 600 }}>{lesson.specialization}</span>
+      </div>
+
+      <h1 style={{ marginBottom: 8 }}>{lesson.title}</h1>
+      <p className="lead" style={{ marginBottom: 18 }}>{content.intro}</p>
 
       {(content.sections || []).map((section, i) => (
         <section key={i}>
@@ -74,17 +78,23 @@ export default function Lesson() {
       ))}
 
       {(content.key_points || []).length > 0 && (
-        <div className="card card-tint" style={{ marginTop: 20 }}>
-          <h3>Key points</h3>
-          <ul className="key-points">{content.key_points.map((point, i) => <li key={i}>{point}</li>)}</ul>
+        <div className="card card-tint" style={{ marginTop: 22 }}>
+          <div className="row" style={{ marginBottom: 8 }}>
+            <h3 style={{ margin: 0, fontSize: "0.92rem" }}>Key points</h3>
+            <Icon name="checkCircle" size={18} filled />
+          </div>
+          <ul className="key-points" style={{ margin: 0 }}>{content.key_points.map((point, i) => <li key={i}>{point}</li>)}</ul>
         </div>
       )}
 
-      <p className="warn" style={{ marginTop: 20 }}>
+      <p className="warn" style={{ marginTop: 18 }}>
         This lesson was written by AI. Check important details with official sources or a qualified professional.
       </p>
 
-      <Link to={`/quiz/${lesson.id}`} className="btn btn-primary btn-block">Take the quiz</Link>
+      <Link to={`/quiz/${lesson.id}`} className="btn btn-primary btn-block" style={{ marginTop: 16 }}>
+        Take the quiz
+        <Icon name="forward" size={18} />
+      </Link>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { FIELDS } from "../data/careers.js";
+import Icon from "../components/Icon.jsx";
 
 export default function Categories() {
   const navigate = useNavigate();
@@ -22,16 +23,22 @@ export default function Categories() {
   }
 
   return (
-    <div className="stack">
-      <Link to="/intent" className="back">Back</Link>
-      <h1>Choose a career field</h1>
-      <input
-        type="text"
-        placeholder="Search, for example: nursing"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        aria-label="Search careers"
-      />
+    <div className="stack" style={{ marginTop: -4 }}>
+      <div>
+        <h1 style={{ marginBottom: 4 }}>Choose a career field</h1>
+        <p className="lead" style={{ margin: 0 }}>Pick the area you want to learn in. You can search for a specific role.</p>
+      </div>
+
+      <div className="input-wrap">
+        <Icon name="search" size={20} />
+        <input
+          type="search"
+          placeholder="Search, for example: nursing"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          aria-label="Search careers"
+        />
+      </div>
 
       {text ? (
         <div>

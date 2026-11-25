@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Loader from "../components/Loader.jsx";
+import Icon from "../components/Icon.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
 // Landing page for a confirmation link that points at /auth/callback.
@@ -29,12 +30,18 @@ export default function AuthCallback() {
 
   return (
     <div className="app">
-      <main className="screen">
-        <div className="wordmark">PathSync<span>.</span></div>
-        <h1>This link did not work</h1>
-        <p className="muted">{message}</p>
-        <div className="stack" style={{ marginTop: 20 }}>
-          <Link className="btn btn-primary btn-block" to="/login">
+      <main className="auth-shell">
+        <div className="auth-head">
+          <div className="brand-mark" style={{ background: "var(--bad-soft)", color: "var(--bad)" }}>
+            <Icon name="refresh" size={26} />
+          </div>
+          <div className="wordmark">PathSync<span>.</span></div>
+        </div>
+
+        <div className="card" style={{ padding: 20 }}>
+          <h1 style={{ fontSize: "1.3rem", marginBottom: 6 }}>This link did not work</h1>
+          <p className="lead" style={{ margin: 0 }}>{message}</p>
+          <Link className="btn btn-primary btn-block" to="/login" style={{ marginTop: 18 }}>
             Go to sign in
           </Link>
         </div>

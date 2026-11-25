@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../services/supabase.js";
 import { generateQuiz } from "../services/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import Icon from "../components/Icon.jsx";
 import Loader from "../components/Loader.jsx";
 
 const PASS_MARK = 60; // percent needed to pass
@@ -126,10 +127,10 @@ export default function Quiz() {
 
   if (error && !result) {
     return (
-      <div className="stack">
-        <Link to={`/lesson/${id}`} className="back">Back to the lesson</Link>
+      <div className="stack" style={{ marginTop: 8 }}>
         <div className="error" role="alert">{error}</div>
         <button className="btn btn-primary btn-block" onClick={() => { loadedFor.current = id; load(); }}>Try again</button>
+        <Link to={`/lesson/${id}`} className="btn btn-ghost btn-block">Back to the lesson</Link>
       </div>
     );
   }
@@ -137,19 +138,32 @@ export default function Quiz() {
 
   if (result) {
     return (
-      <div className="stack">
-        <h1>{result.passed ? "You passed" : "Not quite yet"}</h1>
-        <div className="card">
-          <h2>{result.percent}%</h2>
-          <p className="muted">
-            {score} of {questions.length} correct. You need {PASS_MARK}% to pass.
+      <div className="stack" style={{ marginTop: 4 }}>
+        <div
+          className="card"
+          style={{ textAlign: "center", padding: 26, background: result.passed ? "var(--violet-tint)" : "var(--surface)", borderColor: result.passed ? "#e9e1ff" : "var(--line)" }}
+        >
+          <div className="brand-mark" style={{ margin: "0 auto 10px", background: result.passed ? "var(--violet)" : "var(--surface-container)", color: result.passed ? "#fff" : "var(--muted-2)" }}>
+            <Icon name={result.passed ? "trophy" : "refresh"} size={24} filled={result.passed} />
+          </div>
+          <h1 style={{ marginBottom: 4 }}>{result.passed ? "You passed" : "Not quite yet"}</h1>
+          <p className="lead" style={{ margin: 0 }}>
+            {score} of {questions.length} correct · {result.percent}%
           </p>
+          <p className="muted small" style={{ margin: "6px 0 0" }}>You need {PASS_MARK}% to pass.</p>
         </div>
+
         {error && <div className="error" role="alert">{error}</div>}
+
         {result.passed ? (
           saving ? <Loader text="Saving your certificate..." /> : (
             <>
-              {certificateId && <Link to={`/certificate/${certificateId}`} className="btn btn-primary btn-block">View my certificate</Link>}
+              {certificateId && (
+                <Link to={`/certificate/${certificateId}`} className="btn btn-primary btn-block">
+                  View my certificate
+                  <Icon name="forward" size={18} />
+                </Link>
+              )}
               <Link to="/learn" className="btn btn-ghost btn-block">Back to lessons</Link>
             </>
           )
@@ -165,11 +179,16 @@ export default function Quiz() {
 
   const question = questions[index];
   return (
-    <div className="stack">
-      <Link to={`/lesson/${lesson.id}`} className="back">Back to the lesson</Link>
-      <div className="progress"><div style={{ width: `${(index / questions.length) * 100}%` }} /></div>
-      <p className="muted small">Question {index + 1} of {questions.length}</p>
-      <h2>{question.question}</h2>
+    <div className="stack" style={{ marginTop: -4 }}>
+      <div>
+        <div className="row" style={{ marginBottom: 8 }}>
+          <span className="eyebrow">Quiz</span>
+          <span className="muted small">Question {index + 1} of {questions.length}</span>
+        </div>
+        <div className="progress"><div style={{ width: `${(index / questions.length) * 100}%` }} /></div>
+      </div>
+
+      <h2 style={{ margin: 0, fontSize: "1.15rem" }}>{question.question}</h2>
 
       <div>
         {question.options.map((option, i) => {
@@ -192,6 +211,7 @@ export default function Quiz() {
           </div>
           <button className="btn btn-primary btn-block" onClick={next}>
             {index + 1 < questions.length ? "Next question" : "See my result"}
+            <Icon name="forward" size={18} />
           </button>
         </>
       )}

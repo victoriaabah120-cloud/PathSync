@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { QUESTIONS, NOT_SURE } from "../data/assessment.js";
 import { recommendCareers } from "../services/api.js";
+import Icon from "../components/Icon.jsx";
 import Loader from "../components/Loader.jsx";
 
 export default function Assessment() {
@@ -56,39 +57,57 @@ export default function Assessment() {
 
   if (stage === "results") {
     return (
-      <div className="stack">
-        <h1>Careers that may suit you</h1>
-        <p className="muted">These are suggestions to explore, not a final answer. Pick the one you want to learn.</p>
+      <div className="stack" style={{ marginTop: -4 }}>
+        <div>
+          <span className="eyebrow">Your matches</span>
+          <h1 style={{ margin: "6px 0 4px" }}>Careers that may suit you</h1>
+          <p className="lead" style={{ margin: 0 }}>
+            These are suggestions to explore, not a final answer. Pick the one you want to learn.
+          </p>
+        </div>
+
         {results.map((career) => (
-          <div className="card" key={`${career.field}-${career.specialization}`}>
-            <span className="chip">{career.field}</span>
-            <h2>{career.specialization}</h2>
-            <p>{career.why}</p>
-            <div>{career.key_skills.map((skill) => <span className="chip ok" key={skill}>{skill}</span>)}</div>
-            <button className="btn btn-primary btn-block" onClick={() => choose(career)}>Choose this career</button>
+          <div className="card" key={`${career.field}-${career.specialization}`} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <span className="chip" style={{ alignSelf: "flex-start", margin: 0 }}>{career.field}</span>
+            <h2 style={{ margin: 0 }}>{career.specialization}</h2>
+            <p className="muted" style={{ margin: 0 }}>{career.why}</p>
+            <div>
+              {career.key_skills.map((skill) => <span className="chip ok" key={skill}>{skill}</span>)}
+            </div>
+            <button className="btn btn-primary btn-block" onClick={() => choose(career)}>
+              Choose this career
+              <Icon name="forward" size={18} />
+            </button>
           </div>
         ))}
+
         <Link to="/categories" className="btn btn-ghost btn-block">Browse all careers instead</Link>
       </div>
     );
   }
 
   return (
-    <div className="stack">
-      <div className="progress" aria-label="Progress"><div style={{ width: `${progress}%` }} /></div>
+    <div className="stack" style={{ marginTop: -4 }}>
+      <div>
+        <div className="row" style={{ marginBottom: 8 }}>
+          <span className="eyebrow">{isFreeTextStep ? "Goals" : question.step}</span>
+          <span className="muted small">
+            {isFreeTextStep ? "Last step" : `${index + 1} of ${QUESTIONS.length}`}
+          </span>
+        </div>
+        <div className="progress"><div style={{ width: `${progress}%` }} /></div>
+      </div>
 
       {isFreeTextStep ? (
         <>
-          <p className="muted small">Goals</p>
-          <h1>Where do you want to be in 5 years?</h1>
-          <p className="muted">Optional. A sentence or two is plenty.</p>
-          <textarea value={freeText} onChange={(e) => setFreeText(e.target.value)} maxLength={500} />
+          <h1 style={{ margin: 0 }}>Where do you want to be in 5 years?</h1>
+          <p className="lead" style={{ margin: 0 }}>Optional. A sentence or two is plenty.</p>
+          <textarea value={freeText} onChange={(e) => setFreeText(e.target.value)} maxLength={500} placeholder="For example: leading a small team and mentoring new colleagues." />
         </>
       ) : (
         <>
-          <p className="muted small">{question.step} - question {index + 1} of {QUESTIONS.length}</p>
-          <h1>{question.text}</h1>
-          <p className="muted">{question.hint}</p>
+          <h1 style={{ margin: 0 }}>{question.text}</h1>
+          <p className="lead" style={{ margin: 0 }}>{question.hint}</p>
           <div>
             {[...question.options, NOT_SURE].map((option) => (
               <button key={option} className={chosen.includes(option) ? "option selected" : "option"} onClick={() => toggle(option)}>
@@ -102,11 +121,19 @@ export default function Assessment() {
       {error && <div className="error" role="alert">{error}</div>}
 
       <div className="row">
-        <button className="btn btn-ghost" onClick={() => (index === 0 ? navigate("/intent") : setIndex(index - 1))}>Back</button>
+        <button className="btn btn-ghost" onClick={() => (index === 0 ? navigate("/intent") : setIndex(index - 1))}>
+          Back
+        </button>
         {isFreeTextStep ? (
-          <button className="btn btn-primary" onClick={submit}>Find my careers</button>
+          <button className="btn btn-primary" onClick={submit}>
+            Find my careers
+            <Icon name="forward" size={18} />
+          </button>
         ) : (
-          <button className="btn btn-primary" disabled={chosen.length === 0} onClick={() => setIndex(index + 1)}>Next</button>
+          <button className="btn btn-primary" disabled={chosen.length === 0} onClick={() => setIndex(index + 1)}>
+            Next
+            <Icon name="forward" size={18} />
+          </button>
         )}
       </div>
     </div>

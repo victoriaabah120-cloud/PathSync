@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { authRedirectUrl, supabase } from "../services/supabase.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import Icon from "../components/Icon.jsx";
 
 // Shown when a session exists but the account's email is still unconfirmed.
 export default function VerifyEmail() {
@@ -40,27 +41,36 @@ export default function VerifyEmail() {
 
   return (
     <div className="app">
-      <main className="screen">
-        <div className="wordmark">PathSync<span>.</span></div>
-        <h1>Confirm your email</h1>
-        <p className="muted">
-          We sent a confirmation link to {email}. Open it to unlock your learning path. The link
-          brings you back to PathSync automatically.
-        </p>
+      <main className="auth-shell">
+        <div className="auth-head">
+          <div className="brand-mark">
+            <Icon name="mail" size={26} filled />
+          </div>
+          <div className="wordmark">PathSync<span>.</span></div>
+        </div>
 
-        {error && <div className="error" role="alert" style={{ marginTop: 16 }}>{error}</div>}
-        {notice && <div className="notice" role="status" style={{ marginTop: 16 }}>{notice}</div>}
+        <div className="card" style={{ padding: 20 }}>
+          <h1 style={{ fontSize: "1.3rem", marginBottom: 6 }}>Confirm your email</h1>
+          <p className="lead" style={{ margin: 0 }}>
+            We sent a confirmation link to {email}. Open it to unlock your learning path. The link
+            brings you back to PathSync automatically.
+          </p>
 
-        <div className="stack" style={{ marginTop: 20 }}>
-          <button className="btn btn-primary btn-block" onClick={resend} disabled={busy}>
-            {busy ? "Sending..." : "Resend confirmation email"}
-          </button>
-          <button className="btn btn-block" onClick={leave} disabled={busy}>
-            Use a different account
-          </button>
-          <Link className="muted" to="/login" style={{ textAlign: "center", display: "block" }}>
-            Back to sign in
-          </Link>
+          {error && <div className="error" role="alert" style={{ marginTop: 14 }}>{error}</div>}
+          {notice && <div className="notice" role="status" style={{ marginTop: 14 }}>{notice}</div>}
+
+          <div className="stack" style={{ marginTop: 18 }}>
+            <button className="btn btn-primary btn-block" onClick={resend} disabled={busy}>
+              {busy ? "Sending..." : "Resend confirmation email"}
+            </button>
+            <button className="btn btn-ghost btn-block" onClick={leave} disabled={busy}>
+              Use a different account
+            </button>
+          </div>
+
+          <p style={{ textAlign: "center", margin: "14px 0 0" }}>
+            <Link to="/login" className="small" style={{ fontWeight: 600 }}>Back to sign in</Link>
+          </p>
         </div>
       </main>
     </div>

@@ -20,6 +20,7 @@ export default function Login() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [resending, setResending] = useState(false);
   const [showResend, setShowResend] = useState(false);
@@ -139,9 +140,8 @@ export default function Login() {
 
   const isSignup = mode === "signup";
 
-  function switchMode(event) {
-    event.preventDefault();
-    setMode(isSignup ? "signin" : "signup");
+  function switchMode(next) {
+    setMode(next);
     setError("");
     setNotice("");
     setShowResend(false);
@@ -149,79 +149,140 @@ export default function Login() {
 
   return (
     <div className="app">
-      <main className="screen">
-        <div className="wordmark">PathSync<span>.</span></div>
-        <h1>{isSignup ? "Create your account" : "Welcome back"}</h1>
-        <p className="muted">Sync your skills. Shape your future.</p>
+      <main className="auth-shell">
+        <div className="auth-head">
+          <div className="brand-mark">
+            <span className="mi lg fill" aria-hidden="true">insights</span>
+          </div>
+          <div className="wordmark">PathSync<span>.</span></div>
+          <p>Learn and grow in any profession.</p>
+        </div>
 
-        <form onSubmit={handleSubmit} className="stack">
-          {isSignup && (
-            <label className="field">
-              <span>Your name</span>
-              <input
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                required
-                autoComplete="name"
-              />
-            </label>
-          )}
-
-          <label className="field">
-            <span>Email</span>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-            />
-          </label>
-
-          <label className="field">
-            <span>Password</span>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              autoComplete={isSignup ? "new-password" : "current-password"}
-            />
-          </label>
-
-          {error && <div className="error" role="alert">{error}</div>}
-          {notice && <div className="notice" role="status">{notice}</div>}
-
-          <button className="btn btn-primary btn-block" disabled={busy}>
-            {busy ? "Please wait..." : isSignup ? "Create account" : "Sign in"}
-          </button>
-
-          {showResend && (
+        <div className="card" style={{ padding: 18 }}>
+          <div className="segmented" role="tablist" aria-label="Sign in or create an account">
             <button
               type="button"
-              className="btn btn-block"
-              onClick={resendConfirmation}
-              disabled={resending || !email.trim()}
+              role="tab"
+              aria-selected={!isSignup}
+              className={isSignup ? "seg-btn" : "seg-btn active"}
+              onClick={() => switchMode("signin")}
             >
-              {resending ? "Sending..." : "Resend confirmation email"}
+              Sign in
             </button>
-          )}
-        </form>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={isSignup}
+              className={isSignup ? "seg-btn active" : "seg-btn"}
+              onClick={() => switchMode("signup")}
+            >
+              Create account
+            </button>
+          </div>
 
-        <p className="muted" style={{ marginTop: 18, textAlign: "center" }}>
-          {isSignup ? "Already have an account? " : "New to PathSync? "}
-          <a href="#" onClick={switchMode}>
-            {isSignup ? "Sign in" : "Create an account"}
-          </a>
+          <form onSubmit={handleSubmit} className="stack">
+            {isSignup && (
+              <label className="field" style={{ marginBottom: 0 }}>
+                <span>Your name</span>
+                <div className="input-wrap">
+                  <span className="mi sm" aria-hidden="true">person</span>
+                  <input
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    required
+                    autoComplete="name"
+                    placeholder="Ada Obi"
+                  />
+                </div>
+              </label>
+            )}
+
+            <label className="field" style={{ marginBottom: 0 }}>
+              <span>Email address</span>
+              <div className="input-wrap">
+                <span className="mi sm" aria-hidden="true">mail</span>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                  placeholder="name@example.com"
+                />
+              </div>
+            </label>
+
+            <label className="field" style={{ marginBottom: 0 }}>
+              <span>Password</span>
+              <div className="input-wrap">
+                <span className="mi sm" aria-hidden="true">lock</span>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  autoComplete={isSignup ? "new-password" : "current-password"}
+                  placeholder={isSignup ? "At least 6 characters" : "Your password"}
+                  style={{ paddingRight: 46 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  style={{
+                    position: "absolute",
+                    right: 8,
+                    width: 36,
+                    height: 36,
+                    border: 0,
+                    background: "transparent",
+                    color: "var(--outline)",
+                    cursor: "pointer",
+                    display: "grid",
+                    placeItems: "center",
+                  }}
+                >
+                  <span className="mi sm" aria-hidden="true">visibility</span>
+                </button>
+              </div>
+            </label>
+
+            {error && <div className="error" role="alert">{error}</div>}
+            {notice && <div className="notice" role="status">{notice}</div>}
+
+            <button className="btn btn-primary btn-block" disabled={busy}>
+              {busy ? "Please wait..." : isSignup ? "Create account" : "Sign in"}
+              {!busy && <span className="mi sm" aria-hidden="true">arrow_forward</span>}
+            </button>
+
+            {showResend && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-block"
+                onClick={resendConfirmation}
+                disabled={resending || !email.trim()}
+              >
+                {resending ? "Sending..." : "Resend confirmation email"}
+              </button>
+            )}
+          </form>
+        </div>
+
+        <div className="card-tint" style={{ borderRadius: 16, padding: 12, display: "flex", alignItems: "center", gap: 10, marginTop: 14 }}>
+          <div className="tile-icon" style={{ margin: 0, width: 32, height: 32, flex: "none" }}>
+            <span className="mi sm" aria-hidden="true">explore</span>
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ margin: 0, fontWeight: 700, fontSize: "0.8rem" }}>A path built around you</p>
+            <p className="muted small" style={{ margin: 0 }}>Pick a career, learn in short lessons, earn certificates.</p>
+          </div>
+        </div>
+
+        <p className="muted small" style={{ textAlign: "center", marginTop: 14 }}>
+          Confirmation links open {siteUrl()}.
         </p>
-
-        {!isSignup && (
-          <p className="muted" style={{ marginTop: 10, textAlign: "center", fontSize: 13 }}>
-            Confirmation links open {siteUrl()}.
-          </p>
-        )}
       </main>
     </div>
   );

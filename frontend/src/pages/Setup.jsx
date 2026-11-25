@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { generatePath } from "../services/api.js";
 import { supabase } from "../services/supabase.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import Icon from "../components/Icon.jsx";
 import Loader from "../components/Loader.jsx";
 
 // Builds the learning path for the chosen career, saves it, then opens the home screen.
@@ -60,8 +61,11 @@ export default function Setup() {
 
   if (error) {
     return (
-      <div className="stack">
-        <h1>That did not work</h1>
+      <div className="stack" style={{ marginTop: 8 }}>
+        <div className="brand-mark" style={{ margin: "0 0 6px", background: "var(--bad-soft)", color: "var(--bad)" }}>
+          <Icon name="refresh" size={24} />
+        </div>
+        <h1 style={{ margin: 0 }}>That did not work</h1>
         <div className="error" role="alert">{error}</div>
         <button className="btn btn-primary btn-block" onClick={build}>Try again</button>
         <button className="btn btn-ghost btn-block" onClick={() => navigate("/intent")}>Choose a different career</button>

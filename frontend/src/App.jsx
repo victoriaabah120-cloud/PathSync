@@ -46,12 +46,21 @@ export default function App() {
       <Route path="/verify-email" element={<VerifyEmail />} />
 
       <Route element={<RequireAuth />}>
-        <Route element={<Layout />}>
+        <Route element={<Layout title="Get started" />}>
           <Route path="/intent" element={<CareerIntent />} />
-          <Route path="/assessment" element={<Assessment />} />
-          <Route path="/categories" element={<Categories />} />
-          <Route path="/specializations/:fieldId" element={<Specializations />} />
           <Route path="/setup" element={<Setup />} />
+        </Route>
+
+        <Route element={<Layout title="Career check" back="/intent" />}>
+          <Route path="/assessment" element={<Assessment />} />
+        </Route>
+
+        <Route element={<Layout title="Career fields" back="/intent" />}>
+          <Route path="/categories" element={<Categories />} />
+        </Route>
+
+        <Route element={<Layout title="Specialisations" back="/categories" />}>
+          <Route path="/specializations/:fieldId" element={<Specializations />} />
         </Route>
 
         <Route element={<RequireCareer />}>
@@ -63,9 +72,15 @@ export default function App() {
             <Route path="/profile" element={<Profile />} />
           </Route>
 
-          <Route element={<Layout />}>
+          <Route element={<Layout title="Lesson" back="/learn" />}>
             <Route path="/lesson/:id" element={<Lesson />} />
+          </Route>
+
+          <Route element={<Layout title="Quiz" back="/learn" />}>
             <Route path="/quiz/:id" element={<Quiz />} />
+          </Route>
+
+          <Route element={<Layout title="Certificate" back="/certificates" />}>
             <Route path="/certificate/:id" element={<Certificate />} />
           </Route>
         </Route>
