@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Loader from "../components/Loader.jsx";
-import Icon from "../components/Icon.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
 // Landing page for a confirmation link that points at /auth/callback.
@@ -11,7 +10,6 @@ export default function AuthCallback() {
   const navigate = useNavigate();
   const [waited, setWaited] = useState(false);
 
-  // Give the session a moment to appear before declaring the link unusable.
   useEffect(() => {
     const timer = setTimeout(() => setWaited(true), 4000);
     return () => clearTimeout(timer);
@@ -29,23 +27,31 @@ export default function AuthCallback() {
     "We could not confirm your email from this link. It may have expired or already been used. Send yourself a new one and open it soon after it arrives.";
 
   return (
-    <div className="app">
-      <main className="auth-shell">
-        <div className="auth-head">
-          <div className="brand-mark" style={{ background: "var(--bad-soft)", color: "var(--bad)" }}>
-            <Icon name="refresh" size={26} />
-          </div>
-          <div className="wordmark">PathSync<span>.</span></div>
-        </div>
+    <div className="bg-surface font-body-md text-on-surface flex flex-col min-h-screen">
+      <div className="w-full max-w-md mx-auto flex flex-col min-h-screen relative pt-safe pb-safe">
+        <main className="flex-1 flex flex-col relative w-full px-gutter bg-surface">
+          <div className="flex flex-col w-full pb-safe space-y-6 pt-2">
+            <div className="flex flex-col items-center text-center space-y-1">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-error-container text-error">
+                <span className="material-symbols-outlined text-[28px]">link_off</span>
+              </div>
+              <span className="font-display-lg-mobile text-display-lg-mobile text-on-surface tracking-tight">PathSync</span>
+            </div>
 
-        <div className="card" style={{ padding: 20 }}>
-          <h1 style={{ fontSize: "1.3rem", marginBottom: 6 }}>This link did not work</h1>
-          <p className="lead" style={{ margin: 0 }}>{message}</p>
-          <Link className="btn btn-primary btn-block" to="/login" style={{ marginTop: 18 }}>
-            Go to sign in
-          </Link>
-        </div>
-      </main>
+            <div className="w-full bg-surface-container-lowest rounded-2xl p-space-md shadow-md flex flex-col space-y-4">
+              <h1 className="font-headline-sm text-headline-sm font-bold text-on-surface">This link did not work</h1>
+              <p className="font-body-md text-body-md text-on-surface-variant">{message}</p>
+              <Link
+                to="/login"
+                className="w-full h-12 bg-secondary hover:bg-secondary-container text-on-secondary rounded-xl font-label-lg text-label-lg shadow-md active:scale-[0.98] transition-all flex items-center justify-center space-x-2"
+              >
+                <span>Go to sign in</span>
+                <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+              </Link>
+            </div>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

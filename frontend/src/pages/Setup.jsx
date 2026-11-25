@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { generatePath } from "../services/api.js";
 import { supabase } from "../services/supabase.js";
 import { useAuth } from "../context/AuthContext.jsx";
-import Icon from "../components/Icon.jsx";
 import Loader from "../components/Loader.jsx";
 
 // Builds the learning path for the chosen career, saves it, then opens the home screen.
@@ -61,16 +60,42 @@ export default function Setup() {
 
   if (error) {
     return (
-      <div className="stack" style={{ marginTop: 8 }}>
-        <div className="brand-mark" style={{ margin: "0 0 6px", background: "var(--bad-soft)", color: "var(--bad)" }}>
-          <Icon name="refresh" size={24} />
+      <div className="flex flex-col w-full gap-space-md pt-6">
+        <div className="w-12 h-12 rounded-2xl bg-error-container text-error flex items-center justify-center">
+          <span className="material-symbols-outlined text-[26px]">error</span>
         </div>
-        <h1 style={{ margin: 0 }}>That did not work</h1>
-        <div className="error" role="alert">{error}</div>
-        <button className="btn btn-primary btn-block" onClick={build}>Try again</button>
-        <button className="btn btn-ghost btn-block" onClick={() => navigate("/intent")}>Choose a different career</button>
+        <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface font-bold">That did not work</h1>
+        <div className="bg-error-container text-on-error-container font-body-sm text-body-sm rounded-xl px-3 py-2" role="alert">
+          {error}
+        </div>
+        <button
+          type="button"
+          onClick={build}
+          className="w-full h-12 rounded-xl bg-secondary text-on-secondary font-label-lg text-label-lg font-semibold flex items-center justify-center gap-2 shadow-md"
+        >
+          Try again
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate("/intent")}
+          className="w-full h-12 rounded-xl bg-surface-container text-on-surface font-label-lg text-label-lg font-semibold"
+        >
+          Choose a different career
+        </button>
       </div>
     );
   }
-  return <Loader text={`Building your ${spec} learning path...`} />;
+
+  return (
+    <div className="flex flex-col items-center justify-center flex-1 gap-space-md pt-16">
+      <div className="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-secondary-fixed text-secondary">
+        <span className="material-symbols-outlined text-[30px] filled">auto_awesome</span>
+        <span className="absolute -inset-1 rounded-2xl bg-secondary/10 animate-ping" />
+      </div>
+      <h1 className="font-headline-sm text-headline-sm text-on-surface font-bold text-center">
+        Building your {spec} path
+      </h1>
+      <Loader text="Writing six lessons with your AI mentor..." />
+    </div>
+  );
 }

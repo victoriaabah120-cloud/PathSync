@@ -1,9 +1,11 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { RequireAuth, RequireCareer } from "./components/Guards.jsx";
 import Layout from "./components/Layout.jsx";
+import { useAuth } from "./context/AuthContext.jsx";
 import { supabaseReady } from "./services/supabase.js";
 
 import Login from "./pages/Login.jsx";
+import ResetPassword from "./pages/ResetPassword.jsx";
 import AuthCallback from "./pages/AuthCallback.jsx";
 import VerifyEmail from "./pages/VerifyEmail.jsx";
 import CareerIntent from "./pages/CareerIntent.jsx";
@@ -22,71 +24,78 @@ import Profile from "./pages/Profile.jsx";
 
 function SetupNotice() {
   return (
-    <div className="app">
-      <main className="screen">
-        <h1>PathSync needs its keys</h1>
-        <p>
-          Create <code>frontend/.env</code> from <code>.env.example</code>, fill in
-          <code> VITE_SUPABASE_URL</code> and <code> VITE_SUPABASE_ANON_KEY</code>, then restart
-          <code> npm run dev</code>.
+    <div className="min-h-screen flex items-center justify-center px-gutter bg-surface">
+      <div className="max-w-md w-full bg-surface-container-lowest rounded-2xl p-space-md shadow-md">
+        <h1 className="font-headline-sm text-headline-sm font-bold text-on-surface mb-2">PathSync needs its keys</h1>
+        <p className="font-body-md text-body-md text-on-surface-variant">
+          Create <code className="bg-surface-container px-1 rounded">frontend/.env</code> from{" "}
+          <code className="bg-surface-container px-1 rounded">.env.example</code>, fill in{" "}
+          <code className="bg-surface-container px-1 rounded">VITE_SUPABASE_URL</code> and{" "}
+          <code className="bg-surface-container px-1 rounded">VITE_SUPABASE_ANON_KEY</code>, then restart{" "}
+          <code className="bg-surface-container px-1 rounded">npm run dev</code>.
         </p>
-      </main>
+      </div>
     </div>
   );
+}
+
+// A password recovery link lands on the site root with a recovery session,
+// so send the user to the screen where they can set a new password.
+function RecoveryRedirect({ children }) {
+  const { recovery } = useAuth();
+  if (recovery) return <Navigate to="/reset-password" replace />;
+  return children;
 }
 
 export default function App() {
   if (!supabaseReady) return <SetupNotice />;
 
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      {/* Public: a confirmation link can land here if the redirect is set to /auth/callback. */}
-      <Route path="/auth/callback" element={<AuthCallback />} />
-      <Route path="/verify-email" element={<VerifyEmail />} />
+    <RecoveryRedirect>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        {/* Public: a confirmation link can land here if the redirect is set to /auth/callback. */}
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
 
-      <Route element={<RequireAuth />}>
-        <Route element={<Layout title="Get started" />}>
-          <Route path="/intent" element={<CareerIntent />} />
-          <Route path="/setup" element={<Setup />} />
-        </Route>
-
-        <Route element={<Layout title="Career check" back="/intent" />}>
-          <Route path="/assessment" element={<Assessment />} />
-        </Route>
-
-        <Route element={<Layout title="Career fields" back="/intent" />}>
-          <Route path="/categories" element={<Categories />} />
-        </Route>
-
-        <Route element={<Layout title="Specialisations" back="/categories" />}>
-          <Route path="/specializations/:fieldId" element={<Specializations />} />
-        </Route>
-
-        <Route element={<RequireCareer />}>
-          <Route element={<Layout nav />}>
-            <Route path="/home" element={<Home />} />
-            <Route path="/learn" element={<Learn />} />
-            <Route path="/certificates" element={<Certificates />} />
-            <Route path="/coach" element={<Coach />} />
-            <Route path="/profile" element={<Profile />} />
+        <Route element={<RequireAuth />}>
+          <Route element={<Layout bar="none" mainClass="pt-2 pb-margin-lg" />}>
+            <Route path="/intent" element={<CareerIntent />} />
           </Route>
 
-          <Route element={<Layout title="Lesson" back="/learn" />}>
-            <Route path="/lesson/:id" element={<Lesson />} />
+          <Route element={<Layout bar="none" mainClass="pt-2 pb-8" />}>
+            <Route path="/assessment" element={<Assessment />} />
+            <Route path="/setup" element={<Setup />} />
           </Route>
 
-          <Route element={<Layout title="Quiz" back="/learn" />}>
-            <Route path="/quiz/:id" element={<Quiz />} />
+          <Route element={<Layout bar="back" title="Career Path Overview" mainClass="pt-16 pb-safe" />}>
+            <Route path="/categories" element={<Categories />} />
+            <Route path="/specializations/:fieldId" element={<Specializations />} />
           </Route>
 
-          <Route element={<Layout title="Certificate" back="/certificates" />}>
-            <Route path="/certificate/:id" element={<Certificate />} />
+          <Route element={<RequireCareer />}>
+            <Route element={<Layout nav />}>
+              <Route path="/home" element={<Home />} />
+              <Route path="/learn" element={<Learn />} />
+              <Route path="/certificates" element={<Certificates />} />
+              <Route path="/coach" element={<Coach />} />
+              <Route path="/profile" element={<Profile />} />
+            </Route>
+
+            <Route element={<Layout bar="back" title="Skill Module Detail" mainClass="pt-16 pb-8" />}>
+              <Route path="/lesson/:id" element={<Lesson />} />
+            </Route>
+
+            <Route element={<Layout bar="none" mainClass="pt-4 pb-8" />}>
+              <Route path="/quiz/:id" element={<Quiz />} />
+              <Route path="/certificate/:id" element={<Certificate />} />
+            </Route>
           </Route>
         </Route>
-      </Route>
 
-      <Route path="*" element={<Navigate to="/home" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/home" replace />} />
+      </Routes>
+    </RecoveryRedirect>
   );
 }

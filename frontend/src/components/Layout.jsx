@@ -2,20 +2,28 @@ import { Outlet } from "react-router-dom";
 import AppBar from "./AppBar.jsx";
 import BottomNav from "./BottomNav.jsx";
 
-// nav  = true  -> tab bar at the bottom and the PathSync wordmark in the top bar
-// title / back -> focused screens get a back arrow and their own title
-export default function Layout({ nav = false, title = "", back = "" }) {
-  const classes = ["screen"];
-  if (nav) classes.push("with-nav");
-  classes.push("has-bar");
+/**
+ * Page shell reproduced from the Stitch reference:
+ * a max-w-md column, fixed 64px app bar, and (for tab screens) a fixed bottom nav.
+ */
+export default function Layout({
+  nav = false,
+  bar = "brand",
+  title = "",
+  back = "",
+  mainClass = "",
+}) {
+  const padding = nav ? "px-gutter pt-16 pb-24" : "px-gutter pt-16 pb-8";
 
   return (
-    <div className="app">
-      <AppBar nav={nav} title={title} back={back} />
-      <main className={classes.join(" ")}>
-        <Outlet />
-      </main>
-      {nav && <BottomNav />}
+    <div className="bg-surface font-body-md text-on-surface flex flex-col min-h-screen">
+      <div className="w-full max-w-md mx-auto flex flex-col min-h-screen relative">
+        {bar !== "none" && <AppBar variant={bar} title={title} back={back} />}
+        <main className={`flex-1 flex flex-col relative w-full bg-surface ${padding} ${mainClass}`}>
+          <Outlet />
+        </main>
+        {nav && <BottomNav />}
+      </div>
     </div>
   );
 }

@@ -3,7 +3,6 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../services/supabase.js";
 import { generateQuiz } from "../services/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
-import Icon from "../components/Icon.jsx";
 import Loader from "../components/Loader.jsx";
 
 const PASS_MARK = 60; // percent needed to pass
@@ -84,14 +83,12 @@ export default function Quiz() {
     setSaving(true);
     try {
       if (lesson.status === "completed") {
-        // Already passed before: just find the existing certificate.
         const { data } = await supabase.from("certificates").select("id").eq("lesson_id", lesson.id).maybeSingle();
         setCertificateId(data?.id || null);
       } else {
         await supabase.from("user_lessons")
           .update({ status: "completed", score: percent, completed_at: new Date().toISOString() })
           .eq("id", lesson.id);
-        // Unlock the next lesson.
         await supabase.from("user_lessons")
           .update({ status: "current" })
           .eq("user_id", user.id).eq("position", lesson.position + 1).eq("status", "locked");
@@ -127,93 +124,302 @@ export default function Quiz() {
 
   if (error && !result) {
     return (
-      <div className="stack" style={{ marginTop: 8 }}>
-        <div className="error" role="alert">{error}</div>
-        <button className="btn btn-primary btn-block" onClick={() => { loadedFor.current = id; load(); }}>Try again</button>
-        <Link to={`/lesson/${id}`} className="btn btn-ghost btn-block">Back to the lesson</Link>
+      <div className="flex flex-col gap-space-sm">
+        <div className="bg-error-container text-on-error-container font-body-sm text-body-sm rounded-xl px-3 py-2" role="alert">
+          {error}
+        </div>
+        <button
+          type="button"
+          onClick={() => { loadedFor.current = id; load(); }}
+          className="w-full h-12 rounded-xl bg-secondary text-on-secondary font-label-lg text-label-lg font-semibold"
+        >
+          Try again
+        </button>
+        <Link
+          to={`/lesson/${id}`}
+          className="w-full h-12 rounded-xl bg-surface-container text-on-surface font-label-lg text-label-lg font-semibold flex items-center justify-center"
+        >
+          Back to the lesson
+        </Link>
       </div>
     );
   }
   if (!lesson) return <Loader text="Preparing your quiz..." />;
 
   if (result) {
+    const passed = result.passed;
     return (
-      <div className="stack" style={{ marginTop: 4 }}>
-        <div
-          className="card"
-          style={{ textAlign: "center", padding: 26, background: result.passed ? "var(--violet-tint)" : "var(--surface)", borderColor: result.passed ? "#e9e1ff" : "var(--line)" }}
-        >
-          <div className="brand-mark" style={{ margin: "0 auto 10px", background: result.passed ? "var(--violet)" : "var(--surface-container)", color: result.passed ? "#fff" : "var(--muted-2)" }}>
-            <Icon name={result.passed ? "trophy" : "refresh"} size={24} filled={result.passed} />
+      <div className="flex flex-col w-full pb-24">
+        <div className="flex items-center justify-between pt-space-xs mb-space-md">
+          <div className="flex items-center gap-space-sm">
+            <button
+              type="button"
+              aria-label="Exit quiz"
+              onClick={() => navigate("/learn")}
+              className="w-9 h-9 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface hover:bg-surface-container-highest transition-colors active:scale-95"
+            >
+              <span className="material-symbols-outlined text-[18px]">close</span>
+            </button>
+            <div className="flex flex-col">
+              <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
+                {lesson.specialization}
+              </span>
+              <h2 className="font-headline-sm text-headline-sm text-on-surface font-bold truncate">{lesson.title}</h2>
+            </div>
           </div>
-          <h1 style={{ marginBottom: 4 }}>{result.passed ? "You passed" : "Not quite yet"}</h1>
-          <p className="lead" style={{ margin: 0 }}>
-            {score} of {questions.length} correct · {result.percent}%
-          </p>
-          <p className="muted small" style={{ margin: "6px 0 0" }}>You need {PASS_MARK}% to pass.</p>
         </div>
 
-        {error && <div className="error" role="alert">{error}</div>}
+        <div className="bg-surface-container-lowest rounded-2xl p-space-lg shadow-md flex flex-col gap-space-md text-center items-center">
+          <div
+            className={`w-14 h-14 rounded-full flex items-center justify-center ${
+              passed ? "bg-secondary text-on-secondary" : "bg-surface-container-high text-on-surface-variant"
+            }`}
+          >
+            <span className="material-symbols-outlined text-[28px] filled">{passed ? "emoji_events" : "refresh"}</span>
+          </div>
+          <h3 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface font-bold">
+            {passed ? "You passed" : "Not quite yet"}
+          </h3>
+          <p className="font-body-md text-body-md text-on-surface-variant">
+            {score} of {questions.length} correct · {result.percent}%. You need {PASS_MARK}% to pass.
+          </p>
+          <div className="w-full bg-surface-container-highest h-2.5 rounded-full overflow-hidden">
+            <div className="bg-secondary-container h-full rounded-full" style={{ width: `${result.percent}%` }} />
+          </div>
+        </div>
 
-        {result.passed ? (
-          saving ? <Loader text="Saving your certificate..." /> : (
-            <>
-              {certificateId && (
-                <Link to={`/certificate/${certificateId}`} className="btn btn-primary btn-block">
-                  View my certificate
-                  <Icon name="forward" size={18} />
-                </Link>
-              )}
-              <Link to="/learn" className="btn btn-ghost btn-block">Back to lessons</Link>
-            </>
-          )
-        ) : (
-          <>
-            <button className="btn btn-primary btn-block" onClick={retry}>Try the quiz again</button>
-            <Link to={`/lesson/${lesson.id}`} className="btn btn-ghost btn-block">Review the lesson</Link>
-          </>
+        {error && (
+          <div className="bg-error-container text-on-error-container font-body-sm text-body-sm rounded-xl px-3 py-2 mt-space-md" role="alert">
+            {error}
+          </div>
         )}
+
+        <div className="mt-space-lg flex flex-col gap-space-sm">
+          {passed ? (
+            saving ? (
+              <Loader text="Saving your certificate..." />
+            ) : (
+              <>
+                {certificateId && (
+                  <Link
+                    to={`/certificate/${certificateId}`}
+                    className="w-full h-12 bg-secondary text-on-secondary rounded-xl font-label-lg text-label-lg font-bold flex items-center justify-center gap-2 shadow-md"
+                  >
+                    <span>View my certificate</span>
+                    <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
+                  </Link>
+                )}
+                <Link
+                  to="/learn"
+                  className="w-full h-12 rounded-xl bg-surface-container text-on-surface font-label-lg text-label-lg font-semibold flex items-center justify-center"
+                >
+                  Back to lessons
+                </Link>
+              </>
+            )
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={retry}
+                className="w-full h-12 bg-secondary text-on-secondary rounded-xl font-label-lg text-label-lg font-bold flex items-center justify-center gap-2 shadow-md"
+              >
+                <span>Try the quiz again</span>
+                <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
+              </button>
+              <Link
+                to={`/lesson/${lesson.id}`}
+                className="w-full h-12 rounded-xl bg-surface-container text-on-surface font-label-lg text-label-lg font-semibold flex items-center justify-center"
+              >
+                Review the lesson
+              </Link>
+            </>
+          )}
+        </div>
       </div>
     );
   }
 
   const question = questions[index];
+  const answered = picked !== null;
+  const isCorrect = answered && picked === question.answer_index;
+  const percentDone = Math.round(((index + (answered ? 1 : 0)) / questions.length) * 100);
+
   return (
-    <div className="stack" style={{ marginTop: -4 }}>
-      <div>
-        <div className="row" style={{ marginBottom: 8 }}>
-          <span className="eyebrow">Quiz</span>
-          <span className="muted small">Question {index + 1} of {questions.length}</span>
+    <div className="flex flex-col w-full pb-24 gap-space-md">
+      <div className="flex items-center justify-between pt-space-xs">
+        <div className="flex items-center gap-space-sm">
+          <button
+            type="button"
+            aria-label="Exit quiz"
+            onClick={() => navigate(`/lesson/${lesson.id}`)}
+            className="w-9 h-9 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface hover:bg-surface-container-highest transition-colors active:scale-95"
+          >
+            <span className="material-symbols-outlined text-[18px]">close</span>
+          </button>
+          <div className="flex flex-col min-w-0">
+            <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider truncate">
+              {lesson.specialization}
+            </span>
+            <h2 className="font-headline-sm text-headline-sm text-on-surface font-bold truncate">{lesson.title}</h2>
+          </div>
         </div>
-        <div className="progress"><div style={{ width: `${(index / questions.length) * 100}%` }} /></div>
+        <div className="bg-surface-container-high px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm shrink-0">
+          <span className="material-symbols-outlined text-secondary text-[16px] filled">bolt</span>
+          <span className="font-label-md text-label-md font-bold text-on-surface">
+            Question {index + 1} of {questions.length}
+          </span>
+        </div>
       </div>
 
-      <h2 style={{ margin: 0, fontSize: "1.15rem" }}>{question.question}</h2>
+      <div className="flex flex-col gap-1.5">
+        <div className="w-full bg-surface-container-highest h-2.5 rounded-full overflow-hidden p-0.5">
+          <div className="bg-secondary-container h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${percentDone}%` }} />
+        </div>
+        <div className="flex justify-between items-center text-on-surface-variant font-label-sm text-label-sm px-1">
+          <span className="flex items-center gap-1 font-medium text-secondary">
+            <span className="material-symbols-outlined text-[14px]">timer</span> Question {index + 1}
+          </span>
+          <span className="font-semibold text-on-surface">{percentDone}% Completed</span>
+        </div>
+      </div>
 
-      <div>
+      <div className="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md relative overflow-hidden">
+        <div className="absolute -right-6 -top-6 w-24 h-24 bg-secondary-fixed/30 rounded-full blur-2xl pointer-events-none" />
+        <div className="flex items-center gap-2">
+          <span className="bg-primary-fixed text-on-primary-fixed font-label-sm text-label-sm px-2.5 py-0.5 rounded-full font-bold">
+            Concept Check
+          </span>
+          <span className="text-on-surface-variant font-body-sm text-body-sm">• Single Choice</span>
+        </div>
+        <h3 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface font-bold leading-tight">
+          {question.question}
+        </h3>
+      </div>
+
+      <div className="flex flex-col gap-space-sm">
         {question.options.map((option, i) => {
-          let className = "option";
-          if (picked !== null) {
-            if (i === question.answer_index) className += " correct";
-            else if (i === picked) className += " wrong";
-          }
+          const letter = String.fromCharCode(65 + i);
+          const isPicked = picked === i;
+          const isAnswer = answered && i === question.answer_index;
+          const dim = answered && !isPicked && !isAnswer;
+
           return (
-            <button key={i} className={className} disabled={picked !== null} onClick={() => choose(i)}>{option}</button>
+            <button
+              key={i}
+              type="button"
+              disabled={answered}
+              onClick={() => choose(i)}
+              className={`w-full text-left transition-all duration-200 rounded-2xl p-space-md flex items-center justify-between relative overflow-hidden active:scale-[0.99] cursor-pointer ${
+                isPicked
+                  ? isCorrect
+                    ? "bg-secondary-fixed/40 shadow-md"
+                    : "bg-error-container/60 shadow-md"
+                  : "bg-surface-container-lowest shadow-sm hover:bg-surface-container-low"
+              } ${dim ? "opacity-75" : ""}`}
+            >
+              {isPicked && (
+                <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${isCorrect ? "bg-secondary-container" : "bg-error"}`} />
+              )}
+              <div className={`flex items-start gap-space-md min-w-0 pr-2 ${isPicked ? "pl-1" : ""}`}>
+                <div
+                  className={`w-8 h-8 rounded-xl flex items-center justify-center font-label-lg text-label-lg font-bold shrink-0 ${
+                    isPicked ? "bg-secondary-container text-on-secondary shadow-sm" : "bg-surface-container text-on-surface"
+                  }`}
+                >
+                  {letter}
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`font-headline-sm text-headline-sm font-bold ${isPicked ? "text-on-secondary-fixed" : "text-on-surface"}`}>
+                      {option}
+                    </span>
+                    {isPicked && (
+                      <span className="bg-secondary-container text-on-secondary font-label-sm text-label-sm px-2 py-0.5 rounded-full font-semibold">
+                        Your pick
+                      </span>
+                    )}
+                    {answered && isAnswer && !isPicked && (
+                      <span className="bg-secondary-fixed text-on-secondary-fixed font-label-sm text-label-sm px-2 py-0.5 rounded-full font-semibold">
+                        Correct answer
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div
+                className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 shadow-sm ${
+                  isPicked
+                    ? isCorrect
+                      ? "bg-on-tertiary-container text-on-secondary"
+                      : "bg-error text-on-error"
+                    : "bg-surface-container"
+                }`}
+              >
+                {isPicked ? (
+                  <span className="material-symbols-outlined text-[18px] font-bold filled">{isCorrect ? "check" : "close"}</span>
+                ) : (
+                  <span className="w-2.5 h-2.5 rounded-full bg-transparent" />
+                )}
+              </div>
+            </button>
           );
         })}
       </div>
 
-      {picked !== null && (
-        <>
-          <div className={picked === question.answer_index ? "notice" : "error"}>
-            <strong>{picked === question.answer_index ? "Correct. " : "Not quite. "}</strong>
-            {question.explanation}
+      {answered && (
+        <div className="bg-surface-container-lowest rounded-2xl p-space-md shadow-md flex flex-col gap-space-sm relative overflow-hidden">
+          <div className="flex items-center gap-space-sm">
+            <div
+              className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                isCorrect ? "bg-on-tertiary-container/15 text-on-tertiary-container" : "bg-error-container text-on-error-container"
+              }`}
+            >
+              <span className="material-symbols-outlined text-[20px] font-bold filled">{isCorrect ? "check_circle" : "cancel"}</span>
+            </div>
+            <h4 className="font-headline-sm text-headline-sm font-bold text-on-surface">
+              {isCorrect ? "Correct! Great job." : "Not quite."}
+            </h4>
           </div>
-          <button className="btn btn-primary btn-block" onClick={next}>
-            {index + 1 < questions.length ? "Next question" : "See my result"}
-            <Icon name="forward" size={18} />
-          </button>
-        </>
+          <p className="font-body-md text-body-md text-on-surface-variant pl-10 leading-relaxed">{question.explanation}</p>
+        </div>
+      )}
+
+      {answered && (
+        <div className="sticky bottom-2 z-20 pt-space-xs">
+          <div className="bg-surface-container-lowest/95 backdrop-blur-md p-space-md rounded-2xl shadow-xl flex flex-col gap-space-sm">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center text-on-tertiary-container font-label-md text-label-md font-bold">
+                  <span className="material-symbols-outlined text-[16px] mr-1 filled">verified</span>
+                  Score: {score} / {index + 1} so far
+                </div>
+                <span className="text-outline-variant font-label-sm text-label-sm">•</span>
+                <span className="font-body-sm text-body-sm text-on-surface-variant">
+                  {score === index + 1 ? "Flawless streak!" : "Keep going!"}
+                </span>
+              </div>
+              <div className="flex gap-1">
+                {questions.map((q, i) => (
+                  <span
+                    key={i}
+                    className={`w-2.5 h-2.5 rounded-full ${
+                      i < index ? "bg-secondary-container" : i === index ? "bg-secondary-container" : "bg-surface-container-highest"
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={next}
+              className="w-full h-12 bg-secondary-container hover:bg-secondary text-on-secondary rounded-xl font-label-lg text-label-lg font-bold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
+            >
+              <span>{index + 1 < questions.length ? "Next Question" : "See my result"}</span>
+              <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

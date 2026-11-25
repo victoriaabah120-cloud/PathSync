@@ -19,6 +19,11 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   // Set when a confirmation link could not be verified, so a page can explain why.
   const [authError, setAuthError] = useState("");
+  // True while the user arrived from a password recovery link.
+  const [recovery, setRecovery] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return /(^|[#&?])type=recovery/.test(window.location.hash + window.location.search);
+  });
 
   const loadProfile = useCallback(async (user) => {
     if (!user) {
@@ -61,7 +66,8 @@ export function AuthProvider({ children }) {
       if (active) setLoading(false);
     })();
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
+      if (event === "PASSWORD_RECOVERY") setRecovery(true);
       setSession(newSession);
       // Wait a tick before calling Supabase from inside this callback (avoids a known deadlock).
       setTimeout(() => {
@@ -83,6 +89,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const clearAuthError = useCallback(() => setAuthError(""), []);
+  const clearRecovery = useCallback(() => setRecovery(false), []);
 
   const value = {
     session,
@@ -90,6 +97,8 @@ export function AuthProvider({ children }) {
     profile,
     loading,
     authError,
+    recovery,
+    clearRecovery,
     clearAuthError,
     refreshProfile,
     signOut,
