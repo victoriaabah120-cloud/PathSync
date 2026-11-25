@@ -1307,3 +1307,29 @@
   outline-offset: 3px;
   border-radius: 0.4rem;
 }
+
+/* ---------- gentle float for the two requested sections ---------- */
+@keyframes psl-section-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -12px, 0);
+  }
+}
+.psl-float-soft {
+  animation: psl-section-float 9.5s ease-in-out infinite;
+  will-change: transform;
+}
+.psl-float-soft--alt {
+  animation-duration: 11.5s;
+  animation-delay: -4s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .psl-float-soft,
+  .psl-float-soft--alt {
+    animation: none !important;
+    transform: none !important;
+  }
+}

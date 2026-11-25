@@ -219,7 +219,7 @@ export default function Landing() {
         </section>
 
         {/* ---------- B. what PathSync offers ---------- */}
-        <section className="psl-section" id="features" aria-labelledby="psl-features-title">
+        <section className="psl-section psl-float-soft" id="features" aria-labelledby="psl-features-title">
           <div className="psl-wrap">
             <Reveal as="h2" id="psl-features-title" className="psl-h2">
               What PathSync Offers
@@ -279,7 +279,7 @@ export default function Landing() {
         </section>
 
         {/* ---------- D. why PathSync ---------- */}
-        <section className="psl-section" id="about" aria-labelledby="psl-about-title">
+        <section className="psl-section psl-float-soft psl-float-soft--alt" id="about" aria-labelledby="psl-about-title">
           <div className="psl-wrap">
             <Reveal as="h2" id="psl-about-title" className="psl-h2">
               Why PathSync?

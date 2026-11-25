@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
-const STORAGE_KEY = "pathsync.theme"; // "light" | "dark"; absent means "follow the system"
+const STORAGE_KEY = "pathsync.theme"; // "light" | "dark"; absent means the default gradient look
 const ThemeContext = createContext(null);
 
 const query = () =>
@@ -28,7 +28,8 @@ export function ThemeProvider({ children }) {
   const [preference, setPreference] = useState(() => {
     if (typeof window === "undefined") return "system";
     const stored = window.localStorage.getItem(STORAGE_KEY);
-    return stored === "light" || stored === "dark" ? stored : "system";
+    // The indigo -> violet canvas is the default; Light and System are opt-in.
+    return stored === "light" || stored === "dark" ? stored : "dark";
   });
   const [system, setSystem] = useState(systemTheme);
 
