@@ -1,13 +1,24 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { supabase, supabaseReady } from "../services/supabase.js";
+import { cleanAuthHash, completeAuthRedirect } from "../services/authCallback.js";
 
 const AuthContext = createContext(null);
+
+// One shared promise: React StrictMode mounts effects twice, and the redirect must
+// be handled exactly once while both runs still receive its result.
+let redirectPromise = null;
+function ensureRedirectHandled() {
+  if (!redirectPromise) redirectPromise = completeAuthRedirect();
+  return redirectPromise;
+}
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   // null = not loaded yet, object = loaded
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Set when a confirmation link could not be verified, so a page can explain why.
+  const [authError, setAuthError] = useState("");
 
   const loadProfile = useCallback(async (user) => {
     if (!user) {
@@ -34,19 +45,34 @@ export function AuthProvider({ children }) {
       return undefined;
     }
 
-    supabase.auth.getSession().then(async ({ data }) => {
+    let active = true;
+
+    (async () => {
+      // Runs once per page load, before the session is read, so a ?code= or
+      // ?token_hash= link is exchanged before the app routes anywhere.
+      const result = await ensureRedirectHandled();
+      if (active && result.error) setAuthError(result.error);
+
+      const { data } = await supabase.auth.getSession();
+      if (!active) return;
       setSession(data.session);
+      cleanAuthHash();
       await loadProfile(data.session?.user);
-      setLoading(false);
-    });
+      if (active) setLoading(false);
+    })();
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
       // Wait a tick before calling Supabase from inside this callback (avoids a known deadlock).
-      setTimeout(() => loadProfile(newSession?.user), 0);
+      setTimeout(() => {
+        if (active) loadProfile(newSession?.user);
+      }, 0);
     });
 
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      active = false;
+      listener.subscription.unsubscribe();
+    };
   }, [loadProfile]);
 
   const refreshProfile = useCallback(() => loadProfile(session?.user), [loadProfile, session]);
@@ -56,7 +82,18 @@ export function AuthProvider({ children }) {
     setProfile(null);
   }, []);
 
-  const value = { session, user: session?.user ?? null, profile, loading, refreshProfile, signOut };
+  const clearAuthError = useCallback(() => setAuthError(""), []);
+
+  const value = {
+    session,
+    user: session?.user ?? null,
+    profile,
+    loading,
+    authError,
+    clearAuthError,
+    refreshProfile,
+    signOut,
+  };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

@@ -4,6 +4,8 @@ import Layout from "./components/Layout.jsx";
 import { supabaseReady } from "./services/supabase.js";
 
 import Login from "./pages/Login.jsx";
+import AuthCallback from "./pages/AuthCallback.jsx";
+import VerifyEmail from "./pages/VerifyEmail.jsx";
 import CareerIntent from "./pages/CareerIntent.jsx";
 import Assessment from "./pages/Assessment.jsx";
 import Categories from "./pages/Categories.jsx";
@@ -25,7 +27,7 @@ function SetupNotice() {
         <h1>PathSync needs its keys</h1>
         <p>
           Create <code>frontend/.env</code> from <code>.env.example</code>, fill in
-          <code> VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code>, then restart
+          <code> VITE_SUPABASE_URL</code> and <code> VITE_SUPABASE_ANON_KEY</code>, then restart
           <code> npm run dev</code>.
         </p>
       </main>
@@ -39,6 +41,9 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      {/* Public: a confirmation link can land here if the redirect is set to /auth/callback. */}
+      <Route path="/auth/callback" element={<AuthCallback />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
 
       <Route element={<RequireAuth />}>
         <Route element={<Layout />}>

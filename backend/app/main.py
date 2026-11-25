@@ -2,17 +2,23 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .config import settings
+from .config import PRODUCTION_FRONTEND_URL, settings
 from .routers import assessment, coach, lessons, quiz
 
 app = FastAPI(title="PathSync API")
 
-allowed_origins = [settings.frontend_url, "http://localhost:5173", "http://127.0.0.1:5173"]
+# The deployed site is always allowed, so a missing FRONTEND_URL can never lock the
+# live app out of the API. Localhost is only added while running locally.
+allowed_origins = {settings.frontend_url, PRODUCTION_FRONTEND_URL}
+if settings.is_development:
+    allowed_origins.update(
+        {"http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"}
+    )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_origin_regex=r"https://.*\.app\.github\.dev" if settings.environment == "development" else None,
+    allow_origins=sorted(allowed_origins),
+    allow_origin_regex=r"https://.*\.app\.github\.dev" if settings.is_development else None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
