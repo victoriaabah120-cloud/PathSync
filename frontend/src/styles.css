@@ -335,3 +335,46 @@ html.dark .bg-surface-container-high {
 html.dark .bg-surface-container-highest {
   background-color: rgba(42, 49, 68, 0.65);
 }
+
+/* Report card printing. The report card marks its chrome with ps-print-hide,
+   keeps cards from splitting across pages with ps-print-break, and prints on a
+   plain white sheet with ps-print-sheet. The app bar and bottom navigation are
+   fixed overlays, so they are removed here for every printed screen. */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  header.fixed,
+  nav.fixed,
+  .ps-print-hide {
+    display: none !important;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  .ps-print-sheet {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 10px !important;
+  }
+
+  .ps-print-break {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Cards keep their borders but drop shadows and translucent fills. */
+  .ps-print-sheet .rounded-2xl,
+  .ps-print-sheet .rounded-3xl {
+    box-shadow: none !important;
+    background: #fff !important;
+    border: 1px solid #d5d8e0 !important;
+  }
+}
