@@ -15,6 +15,8 @@ class Settings:
     groq_api_key: str = os.getenv("GROQ_API_KEY", "").strip()
     groq_model: str = os.getenv("GROQ_MODEL", "").strip()
     frontend_url: str = os.getenv("FRONTEND_URL", PRODUCTION_FRONTEND_URL).strip().rstrip("/")
+    paystack_secret_key: str = os.getenv("PAYSTACK_SECRET_KEY", "").strip()
+    paystack_public_key: str = os.getenv("PAYSTACK_PUBLIC_KEY", "").strip()
     environment: str = os.getenv("ENVIRONMENT", "development").strip().lower()
 
     @property

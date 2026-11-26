@@ -3,7 +3,17 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import PRODUCTION_FRONTEND_URL, settings
-from .routers import assessment, certificates, coach, lessons, quiz
+from .routers import (
+    assessment,
+    certificates,
+    coach,
+    lessons,
+    quiz,
+    school_admin,
+    school_student,
+    school_teaching,
+    schools,
+)
 
 app = FastAPI(title="PathSync API")
 
@@ -36,3 +46,7 @@ app.include_router(lessons.router)
 app.include_router(quiz.router)
 app.include_router(coach.router)
 app.include_router(certificates.router)
+app.include_router(schools.router)
+app.include_router(school_admin.router)
+app.include_router(school_teaching.router)
+app.include_router(school_student.router)
