@@ -1,6 +1,6 @@
 """The temporary testing switch that bypasses subscriptions.
 
-SUBSCRIPTION_ENFORCEMENT=disabled is the only value that switches the gates off, it
+SUBSCRIPTION_TEST_MODE=true is the only value that switches the gates off, it
 lives in the server environment, and everything else keeps the real subscription
 rules in force.
 """
@@ -27,7 +27,7 @@ from app.school_tenancy import SchoolContext, ensure_active_subscription, ensure
 @pytest.fixture
 def enforce(monkeypatch):
     def _set(value):
-        monkeypatch.setattr(settings, "subscription_enforcement", value, raising=False)
+        monkeypatch.setattr(settings, "subscription_test_mode", value, raising=False)
 
     return _set
 
@@ -50,23 +50,21 @@ def context(state: str, capacity: int = 100) -> SchoolContext:
 
 
 def test_default_is_enforced(monkeypatch):
-    monkeypatch.setattr(settings, "subscription_enforcement", "enforced", raising=False)
+    monkeypatch.setattr(settings, "subscription_test_mode", "false", raising=False)
     assert settings.subscriptions_enforced is True
     assert settings.billing_mode == "enforced"
 
 
-def test_only_the_exact_disabled_value_bypasses(enforce):
-    for value in ("enforced", "disable", "disabled ", "off", "false", "testing", ""):
+def test_only_the_exact_true_value_bypasses(enforce):
+    for value in ("false", "0", "yes", "on", "disabled", "TRUE!", "", "True "):
         enforce(value)
-        if value == "disabled ":
-            # stripped on read in production; here the raw value keeps enforcement on
-            assert settings.subscriptions_enforced is True
-        else:
-            assert settings.subscriptions_enforced is True, value
+        assert settings.subscriptions_enforced is True, value
+    enforce("true")
+    assert settings.subscriptions_enforced is False
 
 
-def test_disabled_switches_the_gates_off(enforce):
-    enforce("disabled")
+def test_test_mode_switches_the_gates_off(enforce):
+    enforce("true")
     assert settings.subscriptions_enforced is False
     assert settings.billing_mode == "testing"
     assert school_tenancy.effective_subscription_state(None) == "active"
@@ -74,19 +72,19 @@ def test_disabled_switches_the_gates_off(enforce):
 
 
 def test_pending_school_passes_the_payment_gate_while_testing(enforce):
-    enforce("disabled")
+    enforce("true")
     assert ensure_active_subscription(context("pending"))["id"] == "sub-1"
     assert ensure_capacity(context("pending", capacity=0))["id"] == "sub-1"
 
 
 def test_pending_school_is_still_blocked_when_enforced(enforce):
-    enforce("enforced")
+    enforce("false")
     with pytest.raises(HTTPException) as caught:
         ensure_active_subscription(context("pending"))
     assert caught.value.status_code == 402
 
 
 def test_effective_state_matches_the_stored_state_when_enforced(enforce):
-    enforce("enforced")
+    enforce("false")
     assert school_tenancy.effective_subscription_state({"status": "pending"}) == "pending"
     assert school_tenancy.effective_subscription_state({"status": "expired"}) == "expired"

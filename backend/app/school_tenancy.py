@@ -81,9 +81,9 @@ def subscription_for(db, school_id: str) -> dict | None:
 def subscriptions_enforced() -> bool:
     """Whether the subscription gates apply.
 
-    False only when the server runs with SUBSCRIPTION_ENFORCEMENT=disabled. The
-    frontend can read this value but never change it, so the testing bypass cannot
-    be switched on from a browser.
+    False only when the server runs with SUBSCRIPTION_TEST_MODE=true. The frontend
+    can read this value but never change it, so the testing bypass cannot be switched
+    on from a browser.
     """
     return settings.subscriptions_enforced
 
@@ -173,8 +173,8 @@ def require_student(ctx: SchoolContext = Depends(get_school_context)) -> SchoolC
 def ensure_active_subscription(ctx: SchoolContext) -> dict:
     """Premium operations need a live subscription. Reads never do.
 
-    While SUBSCRIPTION_ENFORCEMENT=disabled every school passes this gate, so the
-    module can be exercised without a plan or a payment.
+    While SUBSCRIPTION_TEST_MODE=true every school passes this gate, so the module
+    can be exercised without a plan or a payment.
     """
     if not subscriptions_enforced():
         return ctx.subscription or {}
@@ -197,8 +197,8 @@ def ensure_active_subscription(ctx: SchoolContext) -> dict:
 def ensure_capacity(ctx: SchoolContext, adding: int = 1) -> dict:
     """Block registration beyond the plan's student capacity.
 
-    While SUBSCRIPTION_ENFORCEMENT=disabled there is no plan and no ceiling; ordinary
-    data validation still runs on every student record.
+    While SUBSCRIPTION_TEST_MODE=true there is no plan and no ceiling; ordinary data
+    validation still runs on every student record.
     """
     if not subscriptions_enforced():
         return ctx.subscription or {}

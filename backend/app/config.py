@@ -18,26 +18,31 @@ class Settings:
     paystack_secret_key: str = os.getenv("PAYSTACK_SECRET_KEY", "").strip()
     paystack_public_key: str = os.getenv("PAYSTACK_PUBLIC_KEY", "").strip()
     environment: str = os.getenv("ENVIRONMENT", "development").strip().lower()
-    # Subscription enforcement. The default, "enforced", applies every subscription
-    # gate. Only the exact value "disabled" switches the gates off, which is the
-    # testing mode used while the result compiler is being evaluated: no plan, no
-    # payment, no student capacity limit. It is read from the server environment, so
-    # a browser cannot turn it on, and any other value (including a typo) keeps the
-    # gates in force. Subscription tables, plans, Paystack and payment history are
-    # untouched either way; restoring "enforced" brings the real system back.
-    subscription_enforcement: str = os.getenv("SUBSCRIPTION_ENFORCEMENT", "enforced").strip().lower()
+    # Testing switch for the School Result Compiler. Only the exact value "true"
+    # switches subscriptions and payments off; anything else, including "false", an
+    # empty string, a missing variable or a typo, keeps every subscription gate in
+    # force. It is read from the server environment, so a browser cannot turn it on
+    # and no deployment gets free access by accident. While it is on, no school needs
+    # a plan, a payment or spare student capacity. Subscription tables, plans,
+    # Paystack, verification, webhooks and payment history are untouched; setting the
+    # variable to "false" restores the real system without a code change.
+    subscription_test_mode: str = os.getenv("SUBSCRIPTION_TEST_MODE", "false").strip().lower()
 
     @property
     def is_development(self) -> bool:
         return self.environment == "development"
 
     @property
+    def subscription_test_mode_enabled(self) -> bool:
+        return self.subscription_test_mode == "true"
+
+    @property
     def subscriptions_enforced(self) -> bool:
-        return self.subscription_enforcement != "disabled"
+        return not self.subscription_test_mode_enabled
 
     @property
     def billing_mode(self) -> str:
-        return "enforced" if self.subscriptions_enforced else "testing"
+        return "testing" if self.subscription_test_mode_enabled else "enforced"
 
     def missing(self) -> list[str]:
         names = {
