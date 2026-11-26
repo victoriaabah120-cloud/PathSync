@@ -360,9 +360,15 @@ html.dark .bg-surface-container-highest {
 
   .ps-print-sheet {
     max-width: none !important;
+    width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
     gap: 10px !important;
+  }
+
+  /* The app column is 448px wide on screen; let it fill the printed page. */
+  .max-w-md:has(.ps-print-sheet) {
+    max-width: none !important;
   }
 
   .ps-print-break {
