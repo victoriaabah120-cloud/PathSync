@@ -45,6 +45,16 @@ export default function AppBar({ variant = "brand", title = "", back = "", right
         <div className="flex items-center gap-space-sm">
           {right}
           <ThemeToggle />
+          {variant === "back" && (
+            <Link
+              to="/home"
+              aria-label="Back to the main menu"
+              title="Main menu"
+              className="w-10 h-10 -mr-2 rounded-full flex items-center justify-center text-on-surface active:bg-surface-container-low transition-colors"
+            >
+              <span className="material-symbols-outlined text-[22px]">home</span>
+            </Link>
+          )}
           {variant === "brand" && (
             <Link
               to="/profile"

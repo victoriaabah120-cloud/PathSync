@@ -91,7 +91,7 @@ export default function App() {
               <Route path="/profile" element={<Profile />} />
             </Route>
 
-            <Route element={<Layout bar="back" title="Skill Module Detail" mainClass="pt-16 pb-8" />}>
+            <Route element={<Layout bar="back" title="Skill Module Detail" back="/learn" mainClass="pt-16 pb-8" />}>
               <Route path="/lesson/:id" element={<Lesson />} />
             </Route>
 
