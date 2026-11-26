@@ -54,11 +54,9 @@ function Field({ label, children, hint }) {
 const inputClass =
   "w-full rounded-xl border border-white/15 bg-white/[0.04] px-3 py-2.5 font-body-md text-body-md text-on-surface outline-none focus:border-secondary";
 
-const TABS = ["classes", "students", "subjects", "teachers", "sessions"];
-
 function tabFromUrl() {
   const wanted = new URLSearchParams(window.location.search).get("tab");
-  return TABS.includes(wanted) ? wanted : "classes";
+  return TABS.some((item) => item.id === wanted) ? wanted : "classes";
 }
 
 export default function Manage() {
