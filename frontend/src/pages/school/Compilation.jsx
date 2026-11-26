@@ -156,7 +156,8 @@ export default function Compilation() {
       studentName(result),
       result.student?.admission_no || "",
       ...subjects.map((subject) => {
-        const cell = (result.subject_results || []).find((row) => row.subject_id === subject.subject_id);
+        const subjectId = subject.subject_id || subject.id;
+        const cell = (result.subject_results || []).find((row) => row.subject_id === subjectId);
         return cell ? Number(cell.total ?? 0) : "";
       }),
       Number(result.total_score ?? 0),

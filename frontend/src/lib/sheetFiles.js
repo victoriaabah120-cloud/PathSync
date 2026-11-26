@@ -6,6 +6,7 @@
 // round trip through the backend.
 
 const encoder = new TextEncoder();
+const decoder = new TextDecoder();
 
 const CRC_TABLE = (() => {
   const table = new Uint32Array(256);
@@ -140,6 +141,111 @@ export function buildWorkbook(rows, sheetName = "Class sheet") {
     { name: "xl/_rels/workbook.xml.rels", data: encoder.encode(workbookRels) },
     { name: "xl/worksheets/sheet1.xml", data: encoder.encode(sheetXml(rows)) },
   ]);
+}
+
+function columnIndex(letters) {
+  let index = 0;
+  for (const character of String(letters).toUpperCase()) {
+    const code = character.charCodeAt(0);
+    if (code < 65 || code > 90) continue;
+    index = index * 26 + (code - 64);
+  }
+  return index - 1;
+}
+
+/**
+ * Reads the first worksheet of an .xlsx file into rows of arrays, so a sheet
+ * exported from here can be filled in Excel and imported straight back.
+ * Handles both stored and deflated entries, inline strings and shared strings.
+ */
+export async function readWorkbook(file) {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let endOfDirectory = -1;
+  for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 66000); i -= 1) {
+    if (view.getUint32(i, true) === 0x06054b50) {
+      endOfDirectory = i;
+      break;
+    }
+  }
+  if (endOfDirectory < 0) throw new Error("That file is not a readable .xlsx workbook.");
+
+  const total = view.getUint16(endOfDirectory + 10, true);
+  let pointer = view.getUint32(endOfDirectory + 16, true);
+  const entries = {};
+  for (let i = 0; i < total; i += 1) {
+    if (pointer + 46 > bytes.length || view.getUint32(pointer, true) !== 0x02014b50) break;
+    const method = view.getUint16(pointer + 10, true);
+    const compressedSize = view.getUint32(pointer + 20, true);
+    const size = view.getUint32(pointer + 24, true);
+    const nameLength = view.getUint16(pointer + 28, true);
+    const extraLength = view.getUint16(pointer + 30, true);
+    const commentLength = view.getUint16(pointer + 32, true);
+    const localOffset = view.getUint32(pointer + 42, true);
+    const name = decoder.decode(bytes.subarray(pointer + 46, pointer + 46 + nameLength));
+    entries[name] = { method, compressedSize: compressedSize || size, localOffset };
+    pointer += 46 + nameLength + extraLength + commentLength;
+  }
+
+  async function readEntry(name) {
+    const entry = entries[name];
+    if (!entry) return "";
+    const nameLength = view.getUint16(entry.localOffset + 26, true);
+    const extraLength = view.getUint16(entry.localOffset + 28, true);
+    const start = entry.localOffset + 30 + nameLength + extraLength;
+    const data = bytes.subarray(start, start + entry.compressedSize);
+    if (entry.method === 0) return decoder.decode(data);
+    if (entry.method !== 8) throw new Error("That workbook uses a compression this browser cannot open.");
+    if (typeof DecompressionStream === "undefined") {
+      throw new Error("This browser cannot open a compressed .xlsx file. Save it as CSV instead.");
+    }
+    const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+    return decoder.decode(new Uint8Array(await new Response(stream).arrayBuffer()));
+  }
+
+  const shared = await readEntry("xl/sharedStrings.xml");
+  const sharedStrings = [];
+  if (shared) {
+    const sharedDoc = new DOMParser().parseFromString(shared, "application/xml");
+    Array.from(sharedDoc.getElementsByTagName("si")).forEach((item) => {
+      sharedStrings.push(Array.from(item.getElementsByTagName("t")).map((node) => node.textContent).join(""));
+    });
+  }
+
+  const sheetPath =
+    (entries["xl/worksheets/sheet1.xml"] && "xl/worksheets/sheet1.xml") ||
+    Object.keys(entries).find((name) => /^xl\/worksheets\/.+\.xml$/.test(name));
+  if (!sheetPath) throw new Error("That workbook has no worksheet.");
+
+  const sheetDoc = new DOMParser().parseFromString(await readEntry(sheetPath), "application/xml");
+  const rows = [];
+  Array.from(sheetDoc.getElementsByTagName("row")).forEach((row) => {
+    const cells = [];
+    Array.from(row.getElementsByTagName("c")).forEach((cell) => {
+      const index = columnIndex(String(cell.getAttribute("r") || "").replace(/[0-9]/g, ""));
+      if (index < 0) return;
+      const type = cell.getAttribute("t");
+      let value = "";
+      if (type === "inlineStr") {
+        value = Array.from(cell.getElementsByTagName("t")).map((node) => node.textContent).join("");
+      } else {
+        const node = cell.getElementsByTagName("v")[0];
+        const raw = node ? node.textContent : "";
+        value = type === "s" ? sharedStrings[Number(raw)] ?? "" : raw;
+      }
+      cells[index] = value;
+    });
+    for (let i = 0; i < cells.length; i += 1) if (cells[i] === undefined) cells[i] = "";
+    rows.push(cells);
+  });
+  return rows.filter((row) => row.some((cell) => String(cell).trim() !== ""));
+}
+
+/** Reads an uploaded .csv or .xlsx score sheet into rows. */
+export async function readSheetFile(file) {
+  const name = String(file.name || "").toLowerCase();
+  if (name.endsWith(".xlsx") || name.endsWith(".xlsm")) return readWorkbook(file);
+  return parseCsv(await readFileAsText(file));
 }
 
 /** Saves the rows as a workbook the browser downloads. */

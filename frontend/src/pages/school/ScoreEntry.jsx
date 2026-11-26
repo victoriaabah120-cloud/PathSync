@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import Loader from "../../components/Loader.jsx";
 import { getSheet, saveScores, submitSheet } from "../../services/schoolApi.js";
-import { parseCsv, readFileAsText } from "../../lib/sheetFiles.js";
+import { readSheetFile } from "../../lib/sheetFiles.js";
 
 // Column order here is also the DOM order of the inputs, so Tab walks down a
 // column instead of across a row.
@@ -150,7 +150,7 @@ export default function ScoreEntry() {
     event.target.value = "";
     if (!file) return;
     try {
-      const rows = parseCsv(await readFileAsText(file));
+      const rows = await readSheetFile(file);
       if (rows.length < 2) throw new Error("That file has no rows to import.");
       const normalise = (value) => String(value || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
       const header = rows[0].map(normalise);
@@ -536,7 +536,7 @@ export default function ScoreEntry() {
 
       {canEdit && (
         <div className="sticky bottom-0 z-30 mt-space-sm rounded-2xl border border-outline-variant bg-surface-container-lowest/95 backdrop-blur px-space-sm pt-space-sm pb-space-sm mb-safe flex gap-space-sm shadow-md md:static md:border-0 md:bg-transparent md:shadow-none md:justify-end md:px-0 md:pb-0 md:pt-space-md md:mb-0">
-          <input ref={fileInput} type="file" accept=".csv,text/csv" onChange={handleImport} className="hidden" />
+          <input ref={fileInput} type="file" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={handleImport} className="hidden" />
           <button
             type="button"
             onClick={() => fileInput.current?.click()}

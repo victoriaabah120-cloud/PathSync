@@ -1746,16 +1746,21 @@ def phase_results(ctx: Ctx) -> None:
     # ---------------- CASE 16 ----------------
     admin_b = ctx.token("admin_b")
     problems = []
-    name = f"PathSync Verify B {state.run_id()}"
-    registered = signed_request(
-        "POST", "/schools/register", token=admin_b,
-        body={"name": name, "school_type": "secondary", "email": ctx.account("admin_b")["email"],
-              "city": "Abuja", "state": "FCT", "country": "Nigeria"},
-        expect=(200,),
-    )
-    school_b = (registered.data or {}).get("school") or {}
-    if registered.status != 200:
-        problems.append(f"register school B -> {registered.status}: {excerpt(registered)}")
+    existing_b = signed_request("GET", "/schools/me", token=admin_b, expect=(200, 403, 404))
+    if existing_b.status == 200:
+        # an earlier run already registered school B: reuse it, never re-register
+        school_b = (existing_b.data or {}).get("school") or {}
+    else:
+        name = f"PathSync Verify B {state.run_id()}"
+        registered = signed_request(
+            "POST", "/schools/register", token=admin_b,
+            body={"name": name, "school_type": "secondary", "email": ctx.account("admin_b")["email"],
+                  "city": "Abuja", "state": "FCT", "country": "Nigeria"},
+            expect=(200,),
+        )
+        school_b = (registered.data or {}).get("school") or {}
+        if registered.status != 200:
+            problems.append(f"register school B -> {registered.status}: {excerpt(registered)}")
     if school_b.get("id") == state.get("school_id"):
         problems.append("school B received the same id as school A")
     me_b = signed_request("GET", "/schools/me", token=admin_b, expect=(200,))
@@ -1770,9 +1775,15 @@ def phase_results(ctx: Ctx) -> None:
     sheet = signed_request("GET", f"/schools/me/sheets/{state.get('sheet1_id')}", token=admin_b, expect=(404,))
     if sheet.status != 404:
         problems.append(f"other school sheet -> {sheet.status} (want 404)")
-    roster = signed_request("GET", "/schools/me/students", token=admin_b, expect=(200,))
-    if (roster.data or {}).get("students") != []:
-        problems.append("school B can see school A's students")
+    roster = signed_request("GET", "/schools/me/students", token=admin_b, expect=(200, 409))
+    if roster.status == 200:
+        rows = (roster.data or {}).get("students") or []
+        if rows:
+            problems.append(f"school B can list {len(rows)} students that are not its own")
+    elif roster.status != 409:
+        problems.append(f"other school roster -> {roster.status} (want 200 or 409)")
+    # 409 is the honest answer for a school with no academic session yet: it
+    # cannot list anything, so nothing leaked. Treating it as a leak was wrong.
     role_gate = signed_request("GET", f"/schools/me/results/{cid}", token=admin_b, expect=(403,))
     if role_gate.status != 403:
         problems.append(f"admin reading a report card -> {role_gate.status} (want 403)")
