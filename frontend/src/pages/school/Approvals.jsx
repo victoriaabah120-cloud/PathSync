@@ -52,7 +52,7 @@ const ACTIONS = {
     label: "Reopen",
     icon: "lock_open",
     title: "Reopen these results?",
-    description: "Reopening withdraws the results from report cards until they are approved and published again.",
+    description: "Reopening withdraws the results from report cards. The form teacher signs off again, then you approve and publish.",
     confirmLabel: "Reopen results",
     tone: "danger",
     needsReason: true,
