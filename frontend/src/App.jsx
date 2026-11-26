@@ -30,6 +30,9 @@ import Compilation from "./pages/school/Compilation.jsx";
 import Approvals from "./pages/school/Approvals.jsx";
 import ReportCard from "./pages/school/ReportCard.jsx";
 import CompilerOverview from "./pages/school/CompilerOverview.jsx";
+import Subscription from "./pages/school/Subscription.jsx";
+import StudentDashboard from "./pages/school/StudentDashboard.jsx";
+import Manage from "./pages/school/Manage.jsx";
 import CourseAssessment from "./pages/CourseAssessment.jsx";
 import VerifyCertificate from "./pages/VerifyCertificate.jsx";
 
@@ -114,6 +117,10 @@ export default function App() {
               <Route path="/school/approvals" element={<Approvals />} />
               <Route path="/school/approvals/:classId" element={<Approvals />} />
               <Route path="/school/report/:studentId" element={<ReportCard />} />
+              <Route path="/school/subscription" element={<Subscription />} />
+              <Route path="/schools/subscription" element={<Subscription />} />
+              <Route path="/school/student" element={<StudentDashboard />} />
+              <Route path="/school/manage" element={<Manage />} />
             </Route>
 
             <Route element={<Layout bar="none" mainClass="pt-2 pb-8" />}>

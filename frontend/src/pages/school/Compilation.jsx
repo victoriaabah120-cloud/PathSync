@@ -142,6 +142,32 @@ export default function Compilation() {
     }
   }
 
+  function exportSheet() {
+    const header = [
+      "Student",
+      "Admission no",
+      ...subjects.map((subject) => subject.subject || subject.name || "Subject"),
+      "Total",
+      "Average",
+      "Position",
+      "Remark",
+    ];
+    const body = results.map((result) => [
+      studentName(result),
+      result.student?.admission_no || "",
+      ...subjects.map((subject) => {
+        const cell = (result.subject_results || []).find((row) => row.subject_id === subject.subject_id);
+        return cell ? Number(cell.total ?? 0) : "";
+      }),
+      Number(result.total_score ?? 0),
+      Number(result.average ?? 0),
+      result.position ?? "",
+      result.incomplete ? "Incomplete" : "",
+    ]);
+    const filename = `${klass.name || "class"}-${term.name || "term"}-results`.replace(/[^a-zA-Z0-9-]+/g, "-");
+    downloadWorkbook(filename, [header, ...body], klass.name || "Class sheet");
+  }
+
   if (loading) return <Loader text="Loading class results..." />;
 
   if (loadError) {
@@ -195,6 +221,16 @@ export default function Compilation() {
             </span>
           </div>
         </div>
+        {results.length > 0 && (
+          <button
+            type="button"
+            onClick={exportSheet}
+            className="self-start inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-outline-variant font-label-md text-label-md text-on-surface"
+          >
+            <span className="material-symbols-outlined text-[18px]">download</span>
+            Export Excel
+          </button>
+        )}
         {compilation?.return_reason && (
           <p className="rounded-xl bg-error-container px-space-md py-space-sm font-body-sm text-body-sm text-on-error-container">
             Returned: {compilation.return_reason}

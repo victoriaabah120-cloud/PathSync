@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import Loader from "../../components/Loader.jsx";
 import { getSheet, saveScores, submitSheet } from "../../services/schoolApi.js";
+import { parseCsv, readFileAsText } from "../../lib/sheetFiles.js";
 
 // Column order here is also the DOM order of the inputs, so Tab walks down a
 // column instead of across a row.
@@ -94,6 +95,8 @@ function isComplete(entry) {
 export default function ScoreEntry() {
   const { sheetId } = useParams();
   const [sheetData, setSheetData] = useState(null);
+  const [importNote, setImportNote] = useState("");
+  const fileInput = useRef(null);
   const [students, setStudents] = useState([]);
   const [values, setValues] = useState({});
   const [filter, setFilter] = useState("all");
@@ -141,6 +144,63 @@ export default function ScoreEntry() {
   const config = sheetData?.config || {};
   const sheet = sheetData?.sheet || {};
   const status = String(sheet.status || "draft").toLowerCase();
+
+  async function handleImport(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      const rows = parseCsv(await readFileAsText(file));
+      if (rows.length < 2) throw new Error("That file has no rows to import.");
+      const normalise = (value) => String(value || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+      const header = rows[0].map(normalise);
+      const column = (...names) => {
+        const wanted = names.map(normalise);
+        return header.findIndex((cell) => wanted.some((name) => cell === name || (name && cell.startsWith(name))));
+      };
+      const admissionColumn = column("admission no", "admission number", "adm", "admission");
+      const nameColumn = column("student", "name", "student name");
+      const valueColumns = {};
+      FIELDS.forEach((field) => {
+        valueColumns[field.key] = column(field.short, field.key, field.label);
+      });
+      if (admissionColumn < 0 && nameColumn < 0) {
+        throw new Error("The sheet needs an admission number or student name column.");
+      }
+      const byAdmission = new Map();
+      const byName = new Map();
+      students.forEach((student) => {
+        if (student.admission_no) byAdmission.set(normalise(student.admission_no), student.id);
+        if (student.name) byName.set(normalise(student.name), student.id);
+      });
+      const next = { ...values };
+      let matched = 0;
+      rows.slice(1).forEach((cells) => {
+        const id =
+          (admissionColumn >= 0 ? byAdmission.get(normalise(cells[admissionColumn])) : null) ||
+          (nameColumn >= 0 ? byName.get(normalise(cells[nameColumn])) : null);
+        if (!id) return;
+        const entry = { ...(next[id] || {}) };
+        FIELDS.forEach((field) => {
+          const index = valueColumns[field.key];
+          if (index >= 0 && cells[index] !== undefined && String(cells[index]).trim() !== "") {
+            entry[field.key] = toText(cells[index]);
+          }
+        });
+        next[id] = entry;
+        matched += 1;
+      });
+      setValues(next);
+      setImportNote(
+        matched
+          ? `Imported ${matched} student${matched === 1 ? "" : "s"} from ${file.name}. Check the grid, then save the draft.`
+          : "No row in that file matched an admission number or name on this sheet.",
+      );
+    } catch (error) {
+      setImportNote(error.message || "That file could not be imported.");
+    }
+  }
+
   const canEdit = sheetData ? sheetData.can_edit ?? !(sheetData.locked ?? false) : false;
 
   const maxima = useMemo(() => {
@@ -468,8 +528,23 @@ export default function ScoreEntry() {
         )}
       </div>
 
+      {importNote && (
+        <p className="rounded-xl bg-surface-container px-space-md py-space-sm font-body-sm text-body-sm text-on-surface-variant">
+          {importNote}
+        </p>
+      )}
+
       {canEdit && (
         <div className="sticky bottom-0 z-30 mt-space-sm rounded-2xl border border-outline-variant bg-surface-container-lowest/95 backdrop-blur px-space-sm pt-space-sm pb-space-sm mb-safe flex gap-space-sm shadow-md md:static md:border-0 md:bg-transparent md:shadow-none md:justify-end md:px-0 md:pb-0 md:pt-space-md md:mb-0">
+          <input ref={fileInput} type="file" accept=".csv,text/csv" onChange={handleImport} className="hidden" />
+          <button
+            type="button"
+            onClick={() => fileInput.current?.click()}
+            disabled={saving || submitting}
+            className="flex-1 md:flex-none md:px-space-lg h-12 rounded-xl border border-outline-variant bg-surface-container-lowest font-label-lg text-label-lg text-on-surface disabled:opacity-50 transition-colors"
+          >
+            Import scores
+          </button>
           <button
             type="button"
             onClick={handleSave}
