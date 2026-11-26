@@ -4,37 +4,26 @@ import { createSession, createTerm, listSessions } from "../../services/schoolAp
 /**
  * First-run setup for a brand-new school.
  *
- * The academic endpoints refuse to work until the school has a current session and
- * a term in it, which is correct, but a freshly registered school used to meet that
- * rule as a dead-end "Create an academic session first." error on its own dashboard.
- * This panel asks for exactly the two records the rest of the module needs and then
- * hands control back to the dashboard, so registration leads straight into a usable
- * school instead of a locked screen.
+ * The academic endpoints refuse to work until the school has a current session and a
+ * term in it, which is correct, but a freshly registered school used to meet that rule
+ * as a dead-end "Create an academic session first." error on its own dashboard. This
+ * panel asks for the two records the rest of the module needs and nothing else.
  *
- * Nothing is invented: the school year and term are real rows the administrator can
- * edit later from Manage, and the form is prefilled only with editable suggestions.
+ * Dates are deliberately not part of setup: a school registering mid-year cannot know
+ * when its session or term ends, and the database keeps both date columns nullable for
+ * exactly that case. Calendar dates remain available later in Manage for any school
+ * that wants them.
  */
+const TERM_CHOICES = [
+  { name: "First Term", position: 1 },
+  { name: "Second Term", position: 2 },
+  { name: "Third Term", position: 3 },
+];
+
 function schoolYearLabel() {
   const now = new Date();
   const start = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
   return `${start}/${start + 1}`;
-}
-
-function isoDate(date) {
-  return date.toISOString().slice(0, 10);
-}
-
-function suggestions() {
-  const now = new Date();
-  const startYear = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
-  return {
-    sessionName: `${startYear}/${startYear + 1}`,
-    sessionStart: `${startYear}-09-01`,
-    sessionEnd: `${startYear + 1}-07-31`,
-    termName: "First Term",
-    termStart: `${startYear}-09-01`,
-    termEnd: `${startYear}-12-15`,
-  };
 }
 
 const fieldClass =
@@ -42,15 +31,10 @@ const fieldClass =
 const labelClass = "font-label-md text-label-md text-on-surface-variant";
 
 export default function SchoolSetup({ onDone }) {
-  const defaults = suggestions();
   const [existing, setExisting] = useState([]);
   const [checking, setChecking] = useState(true);
-  const [sessionName, setSessionName] = useState(defaults.sessionName);
-  const [sessionStart, setSessionStart] = useState(defaults.sessionStart);
-  const [sessionEnd, setSessionEnd] = useState(defaults.sessionEnd);
-  const [termName, setTermName] = useState(defaults.termName);
-  const [termStart, setTermStart] = useState(defaults.termStart);
-  const [termEnd, setTermEnd] = useState(defaults.termEnd);
+  const [sessionName, setSessionName] = useState(schoolYearLabel());
+  const [termIndex, setTermIndex] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -75,27 +59,22 @@ export default function SchoolSetup({ onDone }) {
 
   const hasSession = existing.length > 0;
   const currentSession = existing.find((row) => row.is_current) || existing[0] || null;
+  const term = TERM_CHOICES[termIndex];
+  const sessionReady = hasSession || sessionName.trim().length >= 4;
 
   async function submit(event) {
     event.preventDefault();
     setError("");
-    if (new Date(termEnd) < new Date(termStart)) {
-      setError("The term end date must be on or after its start date.");
+    if (!sessionReady) {
+      setError("Give the academic session a name of at least 4 characters, for example 2026/2027.");
       return;
     }
     setBusy(true);
     try {
       let sessionId = currentSession?.id;
       if (!hasSession) {
-        if (new Date(sessionEnd) < new Date(sessionStart)) {
-          setError("The session end date must be on or after its start date.");
-          setBusy(false);
-          return;
-        }
         const created = await createSession({
-          name: sessionName.trim() || defaults.sessionName,
-          starts_on: sessionStart,
-          ends_on: sessionEnd,
+          name: sessionName.trim(),
           is_current: true,
         });
         sessionId = (created?.session || created)?.id;
@@ -103,15 +82,13 @@ export default function SchoolSetup({ onDone }) {
       }
       await createTerm({
         session_id: sessionId,
-        name: termName.trim() || "First Term",
-        position: 1,
-        starts_on: termStart,
-        ends_on: termEnd,
+        name: term.name,
+        position: term.position,
         is_current: true,
       });
       onDone();
     } catch (setupError) {
-      setError(setupError.message || "The school year could not be created. Please try again.");
+      setError(setupError.message || "The academic setup could not be saved. Please try again.");
     } finally {
       setBusy(false);
     }
@@ -132,87 +109,46 @@ export default function SchoolSetup({ onDone }) {
           <span className="material-symbols-outlined text-[22px] text-secondary">event_available</span>
           <div>
             <h2 className="font-headline-sm text-headline-sm text-on-surface">
-              {hasSession ? "Add a term to your academic session" : "Start your school year"}
+              {hasSession ? "Choose the term you are teaching" : "Start your school year"}
             </h2>
             <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
               {hasSession
-                ? `Your session ${currentSession?.name || ""} is in place. Add the term you are teaching now, and the dashboard, classes, score entry and results all open up.`
-                : "Sessions, terms, classes and results all hang off an academic session, so this is the one thing to create before anything else. You can change the dates later in Manage."}
+                ? `Your session ${currentSession?.name || ""} is in place. Pick the term you are teaching now, and the dashboard, classes, score entry and results all open up.`
+                : "Sessions, terms, classes and results all hang off an academic session, so this is the one thing to set up before anything else. A name for the year and the term is all it takes, no dates needed."}
             </p>
           </div>
         </div>
 
         <form onSubmit={submit} className="flex flex-col gap-space-sm mt-space-md">
           {!hasSession && (
-            <div className="flex flex-col gap-space-sm">
-              <div className="flex flex-col gap-1">
-                <label className={labelClass} htmlFor="session-name">Academic session</label>
-                <input
-                  id="session-name"
-                  className={fieldClass}
-                  value={sessionName}
-                  onChange={(event) => setSessionName(event.target.value)}
-                  placeholder="2026/2027"
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-sm">
-                <div className="flex flex-col gap-1">
-                  <label className={labelClass} htmlFor="session-start">Session starts</label>
-                  <input
-                    id="session-start"
-                    type="date"
-                    className={fieldClass}
-                    value={sessionStart}
-                    onChange={(event) => setSessionStart(event.target.value)}
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className={labelClass} htmlFor="session-end">Session ends</label>
-                  <input
-                    id="session-end"
-                    type="date"
-                    className={fieldClass}
-                    value={sessionEnd}
-                    onChange={(event) => setSessionEnd(event.target.value)}
-                  />
-                </div>
-              </div>
+            <div className="flex flex-col gap-1">
+              <label className={labelClass} htmlFor="session-name">Academic session</label>
+              <input
+                id="session-name"
+                className={fieldClass}
+                value={sessionName}
+                onChange={(event) => setSessionName(event.target.value)}
+                placeholder="2026/2027"
+                autoComplete="off"
+              />
+              <p className="font-label-sm text-label-sm text-on-surface-variant">
+                The academic year, for example 2026/2027.
+              </p>
             </div>
           )}
 
-          <div className="flex flex-col gap-space-sm pt-space-xs border-t border-outline-variant/40 mt-space-xs">
-            <div className="flex flex-col gap-1">
-              <label className={labelClass} htmlFor="term-name">Term</label>
-              <input
-                id="term-name"
-                className={fieldClass}
-                value={termName}
-                onChange={(event) => setTermName(event.target.value)}
-                placeholder="First Term"
-              />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-sm">
-              <div className="flex flex-col gap-1">
-                <label className={labelClass} htmlFor="term-start">Term starts</label>
-                <input
-                  id="term-start"
-                  type="date"
-                  className={fieldClass}
-                  value={termStart}
-                  onChange={(event) => setTermStart(event.target.value)}
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className={labelClass} htmlFor="term-end">Term ends</label>
-                <input
-                  id="term-end"
-                  type="date"
-                  className={fieldClass}
-                  value={termEnd}
-                  onChange={(event) => setTermEnd(event.target.value)}
-                />
-              </div>
-            </div>
+          <div className="flex flex-col gap-1">
+            <label className={labelClass} htmlFor="term-name">Term</label>
+            <select
+              id="term-name"
+              className={fieldClass}
+              value={termIndex}
+              onChange={(event) => setTermIndex(Number(event.target.value))}
+            >
+              {TERM_CHOICES.map((choice, index) => (
+                <option key={choice.name} value={index}>{choice.name}</option>
+              ))}
+            </select>
           </div>
 
           {error && (
@@ -221,7 +157,7 @@ export default function SchoolSetup({ onDone }) {
 
           <button
             type="submit"
-            disabled={busy}
+            disabled={busy || !sessionReady}
             className="h-12 rounded-xl bg-secondary text-on-secondary font-label-lg text-label-lg font-semibold disabled:opacity-60"
           >
             {busy ? "Saving..." : hasSession ? "Save term" : "Create session and term"}
@@ -230,7 +166,8 @@ export default function SchoolSetup({ onDone }) {
       </section>
 
       <p className="font-body-sm text-body-sm text-on-surface-variant">
-        Already set up? Open <span className="text-secondary">Manage</span> to add classes, subjects, students and staff.
+        Term dates are optional and can be added later under <span className="text-secondary">Manage</span>, along with
+        classes, subjects, students and staff.
       </p>
     </div>
   );

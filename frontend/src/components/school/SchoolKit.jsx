@@ -242,6 +242,14 @@ export function ordinal(value) {
   return `${whole}${suffix}`;
 }
 
+// Session and term dates are optional, so a missing range is described in words
+// rather than printed as a pair of dashes.
+export function dateRange(startsOn, endsOn) {
+  if (!startsOn && !endsOn) return "Dates not set";
+  if (startsOn && endsOn) return `${dateOf(startsOn)} – ${dateOf(endsOn)}`;
+  return startsOn ? `From ${dateOf(startsOn)}` : `Until ${dateOf(endsOn)}`;
+}
+
 export function dateOf(iso, withTime = false) {
   if (!iso) return "—";
   const date = new Date(iso);

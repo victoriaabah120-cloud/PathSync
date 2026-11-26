@@ -8,6 +8,7 @@ import {
   SectionCard,
   SectionTitle,
   dateOf,
+  dateRange,
   humanise,
   number,
 } from "../../components/school/SchoolKit.jsx";
@@ -444,7 +445,7 @@ export default function CompilerOverview() {
                 <div className="min-w-0">
                   <p className="font-label-lg text-label-lg text-on-surface font-semibold truncate">{session.name}</p>
                   <p className="font-label-sm text-label-sm text-on-surface-variant">
-                    {dateOf(session.starts_on)} – {dateOf(session.ends_on)}
+                    {dateRange(session.starts_on, session.ends_on)}
                   </p>
                 </div>
                 {session.is_current && (
@@ -473,7 +474,7 @@ export default function CompilerOverview() {
                       {term.name} <span className="text-on-surface-variant font-normal">· {parent?.name || "Session"}</span>
                     </p>
                     <p className="font-label-sm text-label-sm text-on-surface-variant">
-                      Position {term.position} · {dateOf(term.starts_on)} – {dateOf(term.ends_on)}
+                      Position {term.position} · {dateRange(term.starts_on, term.ends_on)}
                     </p>
                   </div>
                   {term.is_current && (
