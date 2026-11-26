@@ -259,7 +259,11 @@ function StudentsTab({ students, classes, busy, onCreate, onStatus }) {
   return (
     <>
       <SectionCard>
-        <SectionTitle icon="school" title="Students" note={`${students.length} enrolled`} />
+        <SectionTitle
+          icon="school"
+          title="Students"
+          note={`${students.length} on the roster · ${students.filter((item) => (item.status || "active") === "active").length} active`}
+        />
         {students.length === 0 ? (
           <EmptyState icon="person_add" title="No students yet">
             Enrol the first student with an admission number.
