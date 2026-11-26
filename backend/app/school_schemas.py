@@ -117,6 +117,15 @@ class ScoresSave(BaseModel):
     rows: list[ScoreRow] = Field(min_length=1, max_length=500)
 
 
+class SheetCreate(BaseModel):
+    """The class and subject a teacher is opening a score sheet for."""
+
+    session_id: str
+    term_id: str
+    class_id: str
+    subject_id: str
+
+
 class ReasonBody(BaseModel):
     reason: str = Field(default="", max_length=400)
 

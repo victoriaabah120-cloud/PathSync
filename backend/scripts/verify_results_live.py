@@ -19,10 +19,12 @@ WHAT IT DOES
 REQUIRED ENVIRONMENT
     SUPA_KEY                publishable (anon) key of the Supabase project.
                             Read from the environment, never hardcoded.
-    PAYSTACK_SECRET_KEY     optional. Only case 18 needs it, to produce a valid
-                            x-paystack-signature. Without it case 18 is SKIPped,
-                            which is correct: a signature that cannot be forged
-                            is the whole point of the check.
+    PAYSTACK_SECRET_KEY     optional, and it must match the value the API holds.
+                            Cases 2c, 3b and 18 need it: without it no payment can
+                            be confirmed and no valid x-paystack-signature can be
+                            produced, so those cases are SKIPped as NOT COVERED.
+                            A signature that cannot be forged is the whole point,
+                            so the harness never fakes one.
     VERIFY_EMAIL_DOMAIN     optional, default example.test
     PATHSYNC_API            optional, default https://pathsync.onrender.com
 
@@ -139,6 +141,10 @@ NOTES = {
     "15": "A student reads only their own published result: their report card returns their own id, totals, position and two subjects, a classmate-less student in the same school gets an empty list and 403 on the report. Proves student-level isolation.",
     "16": "Tenancy is enforced by the school id on every query: another school's admin gets 404 for that compilation (approve, publish) and for the sheet, and their own student list is empty. Proves cross-school isolation cannot be bypassed by knowing an id.",
     "17": "Expiry is derived from current_period_end, not a flag: with the period in the past, reads (school, students, sheet, report card) still return 200 while premium writes (student create, compile) return 402 with an expiry message. Proves data is never held hostage and writes are gated.",
+    "2c": "Checkout reaches Paystack and returns a hosted authorization_url. Skipped when the API has no PAYSTACK_SECRET_KEY: a 503 from /webhooks/paystack proves the credential is absent, and no client-side trick can substitute for it.",
+    "2d": "The amount is read from the plan row: switching the same checkout to the annual cycle changes the recorded amount to the annual price, and an unknown plan code is 404. Proves the browser cannot name its own price.",
+    "4g": "Without a live plan the compiler is closed for writes but open for reads: students, subjects, classes and the school all return 200, while a student create returns 402 with a readable detail. Proves the gate restricts operations instead of hiding history.",
+    "8s": "POST /schools/me/sheets is the entry point a teacher needs before any score can exist. It answers 402 while the plan is not live (so the route is deployed and gated, not missing) and 403 for a student account. Proves the sheet can be opened at all and only by staff.",
     "18": "The webhook trusts cryptography, not the caller: a wrong signature is 401 and stores nothing, a correctly signed event is processed once, and the replay returns duplicate=true without creating a second invoice. Proves signature verification and idempotent event handling.",
 }
 
@@ -388,6 +394,25 @@ def webhook_post(payload, *, secret=None, signature=None) -> Response:
     return http("POST", f"{API_BASE}/webhooks/paystack", raw=raw, headers=headers, timeout=60)
 
 
+def payments_probe() -> tuple[bool, str]:
+    """Does the deployed API actually hold Paystack credentials?
+
+    The webhook refuses an unsigned event with 401 once PAYSTACK_SECRET_KEY is
+    set, and answers 503 before it looks at the signature when it is not. That
+    makes an empty signed-less POST a safe, side-effect free probe: nothing is
+    stored either way.
+    """
+    resp = http(
+        "POST", f"{API_BASE}/webhooks/paystack",
+        raw=b"{}", headers={"Content-Type": "application/json"}, timeout=60,
+    )
+    if resp.status == 401:
+        return True, "webhook rejects an unsigned event with 401"
+    if resp.status == 503:
+        return False, "webhook answers 503 (payments are not configured)"
+    return False, f"webhook probe returned {resp.status}: {excerpt(resp, 120)}"
+
+
 # ---------------------------------------------------------------------------
 # Supabase auth
 # ---------------------------------------------------------------------------
@@ -543,6 +568,11 @@ def require(ctx: Ctx, *keys):
         raise Blocked(f"missing state {missing}; run the earlier phase first (see --dry-run)")
 
 
+def skip_phase(report: Report, cases: list[tuple[str, str]], reason: str) -> None:
+    for case, title in cases:
+        report.skip(case, title, reason)
+
+
 def ensure_sheet(ctx: Ctx, subject_key: str, subject_id: str) -> str:
     """Return the id of the score sheet for a class-subject.
 
@@ -639,7 +669,12 @@ def phase_setup(ctx: Ctx) -> None:
             "supabase/migrations/2026-11-26-school-result-compiler.sql, then reload the PostgREST "
             "schema cache (select pg_notify('pgrst', 'reload schema');)."
         )
-    report.setup(f"API {API_BASE} reachable, /schools/plans healthy")
+    payments_configured, payments_detail = payments_probe()
+    state.set("payments_configured", payments_configured)
+    report.setup(
+        f"API {API_BASE} reachable, /schools/plans healthy; payments "
+        + ("CONFIGURED" if payments_configured else "NOT CONFIGURED") + f" ({payments_detail})"
+    )
 
     admin = ctx.token("admin_a")
     admin_sub = ctx.user_id("admin_a")
@@ -721,21 +756,43 @@ def phase_setup(ctx: Ctx) -> None:
                  not problems, "; ".join(problems))
 
     basic = by_code.get("basic") or {}
+    payments_ok = bool(state.get("payments_configured"))
+
+    # The pending subscription and its payment row are written before the API
+    # needs the provider, so plan selection and price integrity are provable even
+    # on a deployment that has no Paystack credentials.
+    def pending_subscription() -> tuple[dict, list]:
+        detail = signed_request("GET", "/schools/me/subscription", token=admin, expect=(200,))
+        data = detail.data or {}
+        return data.get("subscription") or {}, data.get("payments") or []
+
+    def check_pending_subscription(cycle: str, amount: int) -> list[str]:
+        subscription, payments = pending_subscription()
+        problems = check_fields(subscription, {
+            "status": "pending",
+            "plan_id": basic.get("id"),
+            "billing_cycle": cycle,
+            "amount_kobo": amount,
+            "student_capacity": 100,
+            "currency": "NGN",
+        }, "subscription.")
+        if len(payments) != 1:
+            problems.append(f"payments={len(payments)} (want 1 pending payment)")
+        else:
+            problems += check_fields(payments[0], {
+                "status": "pending", "amount_kobo": amount, "currency": "NGN", "reference": nonempty,
+            }, "payment.")
+        if subscription.get("paystack_reference"):
+            state.set("reference", subscription["paystack_reference"])
+        return problems
+
     checkout = signed_request(
         "POST", "/schools/me/subscription/checkout", token=admin,
         body={"plan_code": "basic", "billing_cycle": "monthly"}, expect=(200, 503),
     )
-    if checkout.status == 503:
-        report.block(
-            "2b", "a plan can be selected and a pending subscription created",
-            "checkout returned 503: the API has no PAYSTACK_SECRET_KEY, so the payment flow cannot be "
-            f"verified live ({detail_text(checkout)})",
-        )
-        report.block("3a", "an unverified checkout does not activate a subscription",
-                     "checkout is unavailable (see case 2b)")
-    else:
+    problems = []
+    if checkout.status == 200:
         subscription = (checkout.data or {}).get("subscription") or {}
-        problems = []
         problems += check_fields(checkout.data or {}, {
             "reference": nonempty,
             "authorization_url": lambda v: isinstance(v, str) and v.startswith("https://"),
@@ -752,6 +809,51 @@ def phase_setup(ctx: Ctx) -> None:
             state.set("authorization_url", checkout.data.get("authorization_url"))
         report.check("2b", "a plan can be selected and a pending subscription created at its price",
                      not problems, "; ".join(problems))
+        report.check("2c", "checkout hands back a Paystack authorization url", True)
+    elif checkout.status == 503:
+        # No PAYSTACK_SECRET_KEY on this deployment: the intent is still recorded.
+        problems += check_pending_subscription("monthly", 2_500_000)
+        report.check("2b", "a plan can be selected and a pending subscription recorded at the seeded price",
+                     not problems, "; ".join(problems))
+        report.skip(
+            "2c", "checkout hands back a Paystack authorization url",
+            "NOT COVERED: the deployed API answers 503 (Payments are not configured) because "
+            "PAYSTACK_SECRET_KEY is not set on Render, so no payment can be started. "
+            "Set that variable, redeploy, then re-run --phase setup.",
+        )
+    else:
+        report.check("2b", "a plan can be selected and a pending subscription recorded at the seeded price",
+                     False, f"checkout -> {checkout.status}: {excerpt(checkout)}")
+        report.skip("2c", "checkout hands back a Paystack authorization url", "checkout did not succeed")
+
+    # Price integrity: the amount comes from the plan row, never from the client.
+    if state.get("reference") or payments_ok:
+        annual = by_code.get("basic", {}).get("annual_price_kobo")
+        annual_checkout = signed_request(
+            "POST", "/schools/me/subscription/checkout", token=admin,
+            body={"plan_code": "basic", "billing_cycle": "annual"}, expect=(200, 503),
+        )
+        problems = []
+        if annual_checkout.status in (200, 503) and is_number(annual):
+            problems += check_pending_subscription("annual", int(annual))
+        else:
+            problems.append(f"annual checkout -> {annual_checkout.status}")
+        unknown = signed_request(
+            "POST", "/schools/me/subscription/checkout", token=admin,
+            body={"plan_code": "no-such-plan", "billing_cycle": "monthly"}, expect=(404,),
+        )
+        if unknown.status != 404:
+            problems.append(f"unknown plan -> {unknown.status} (want 404)")
+        report.check("2d", "the price charged is the plan's own, and an unknown plan is refused",
+                     not problems, "; ".join(problems))
+        # Put the monthly intent back so the rest of the run describes one plan.
+        signed_request(
+            "POST", "/schools/me/subscription/checkout", token=admin,
+            body={"plan_code": "basic", "billing_cycle": "monthly"}, expect=(200, 503),
+        )
+    else:
+        report.skip("2d", "the price charged is the plan's own, and an unknown plan is refused",
+                    "no pending subscription was recorded")
 
     # ---------------- CASE 3a: checkout alone does not activate ----------------
     problems = []
@@ -769,25 +871,29 @@ def phase_setup(ctx: Ctx) -> None:
 
         unpaid = signed_request(
             "POST", "/schools/me/subscription/verify", token=admin,
-            query={"reference": state.get("reference")}, expect=(200, 402),
+            query={"reference": state.get("reference")}, expect=(200, 402, 503),
         )
         if unpaid.status == 200:
             report.skip("3a", "an unverified checkout does not activate a subscription",
                         "the checkout is already paid and verified; this half cannot be replayed")
             problems = []
-        elif unpaid.status != 402:
+        elif unpaid.status not in (402, 503):
             problems.append(f"verify before payment -> {unpaid.status} (want 402): {excerpt(unpaid)}")
         else:
             still = signed_request("GET", "/schools/me", token=admin, expect=(200,))
-            problems += check_fields(still.data or {}, {"subscription_state": "pending"}, "after-402.")
+            problems += check_fields(still.data or {}, {"subscription_state": "pending"}, "after-verify.")
             invoices = signed_request("GET", "/schools/me/subscription", token=admin, expect=(200,))
             problems += check_fields(invoices.data or {}, {"state": "pending", "invoices": lambda v: v == []}, "")
-        if problems or unpaid.status != 200:
-            report.check("3a", "an unverified checkout does not activate a subscription", not problems, "; ".join(problems))
+            _, payments = pending_subscription()
+            if [p.get("status") for p in payments] != ["pending"]:
+                problems.append(f"payment statuses={[p.get('status') for p in payments]} (want one pending)")
+        note = "" if unpaid.status == 402 else " (the provider call answered 503: no Paystack key on the API)"
+        report.check("3a", "an unverified checkout does not activate a subscription", not problems,
+                     "; ".join(problems) + note)
     else:
         if not any(case == "3a" for _status, case, *_ in report.records):
-            report.block("3a", "an unverified checkout does not activate a subscription",
-                         "checkout did not produce a reference")
+            report.skip("3a", "an unverified checkout does not activate a subscription",
+                        "checkout did not record a reference")
 
     # ---------------- Structure (no case number) ----------------
     session = signed_request(
@@ -954,8 +1060,19 @@ def phase_setup(ctx: Ctx) -> None:
 # ---------------------------------------------------------------------------
 def phase_pay(ctx: Ctx) -> bool:
     report = ctx.report
+    state = ctx.state
     require(ctx, "reference", "school_id")
     admin = ctx.token("admin_a")
+
+    if not state.get("payments_configured"):
+        report.skip(
+            "3b", "a verified payment activates the subscription exactly once",
+            "NOT COVERED: the deployed API has no PAYSTACK_SECRET_KEY, so /schools/me/subscription/verify "
+            "and /webhooks/paystack both answer 503 and no payment can be confirmed. Manual step: set "
+            "PAYSTACK_SECRET_KEY (test key) on the Render service, redeploy, then re-run "
+            "--phase setup, pay the printed authorization_url, and re-run --phase pay.",
+        )
+        return False
 
     verified = signed_request(
         "POST", "/schools/me/subscription/verify", token=admin,
@@ -1028,6 +1145,92 @@ def phase_pay(ctx: Ctx) -> bool:
 # ---------------------------------------------------------------------------
 # Phase: teach (cases 5, 4, 8, 9, 10, 11, 12)
 # ---------------------------------------------------------------------------
+NO_PLAN_REASON = (
+    "NOT COVERED: the test school's subscription is {state!r}, so the API refuses student registration "
+    "and every score operation with 402. That gate is itself verified below (case 4g). Once a "
+    "PAYSTACK_SECRET_KEY is configured and --phase pay succeeds, this case runs unchanged."
+)
+
+
+def teach_without_subscription(ctx: Ctx, subscription_state: str) -> None:
+    """Report what a school without a live plan can and cannot do.
+
+    The compiler is deliberately closed without a subscription, so the cases that
+    need students, sheets or a compilation cannot run. Rather than turning that
+    into a wall of FAILs, the gate is verified and the rest is recorded as not
+    covered.
+    """
+    report = ctx.report
+    state = ctx.state
+    admin = ctx.token("admin_a")
+    teacher = ctx.token("teacher_1")
+    run_id = state.run_id()
+    reason = NO_PLAN_REASON.format(state=subscription_state)
+
+    # Case 4g: reads stay open, premium writes are refused with a readable 402.
+    problems = []
+    for label, path in (("students", "/schools/me/students"), ("subjects", "/schools/me/subjects"),
+                        ("classes", "/schools/me/classes"), ("school", "/schools/me")):
+        resp = signed_request("GET", path, token=admin, expect=(200,))
+        if resp.status != 200:
+            problems.append(f"GET {path} -> {resp.status} (want 200)")
+    blocked = signed_request(
+        "POST", "/schools/me/students", token=admin,
+        body={"admission_no": f"PV-{run_id}-GATE", "first_name": "Gate", "last_name": "Check",
+              "session_id": state.get("session_id")},
+        expect=(402,),
+    )
+    if blocked.status != 402:
+        problems.append(f"student create without a live plan -> {blocked.status} (want 402)")
+    elif not detail_text(blocked):
+        problems.append("the 402 carries no readable detail")
+    report.check("4g", "reads stay open and premium writes are refused while the plan is not live",
+                 not problems, "; ".join(problems))
+
+    # Case 8s: the score-sheet route exists and is gated, not missing.
+    problems = []
+    created = signed_request(
+        "POST", "/schools/me/sheets", token=teacher,
+        body={"session_id": state.get("session_id"), "term_id": state.get("term_id"),
+              "class_id": state.get("class_id"), "subject_id": state.get("subject1_id")},
+        expect=(402,),
+    )
+    if created.status == 402:
+        pass
+    elif created.status in (404, 405):
+        problems.append(f"POST /schools/me/sheets -> {created.status}: the API cannot open a score sheet at all")
+    else:
+        problems.append(f"POST /schools/me/sheets -> {created.status} (want 402 while unsubscribed): {excerpt(created)}")
+    student_token = None
+    try:
+        student_token = ctx.token("student_a")
+    except (Blocked, AuthError):
+        student_token = None
+    if student_token:
+        refused = signed_request(
+            "POST", "/schools/me/sheets", token=student_token,
+            body={"session_id": state.get("session_id"), "term_id": state.get("term_id"),
+                  "class_id": state.get("class_id"), "subject_id": state.get("subject1_id")},
+            expect=(403,),
+        )
+        if refused.status != 403:
+            problems.append(f"student opening a sheet -> {refused.status} (want 403)")
+    report.check("8s", "the score-sheet route exists and only staff can open one", not problems, "; ".join(problems))
+
+    for case, title in (
+        ("4", "capacity blocks student registration beyond the plan limit"),
+        ("4b", "one free slot admits exactly one concurrent student"),
+        ("5", "the admin creates a class and enrols students"),
+        ("5b", "the student accounts activate and hold the student role"),
+        ("8", "a teacher outside the assignment cannot read or write a sheet"),
+        ("9", "scores above the configured maximum are rejected and the maximum itself accepted"),
+        ("10", "submitting with a missing score is rejected"),
+        ("11", "submitting after every student is complete succeeds"),
+        ("12", "a second submit and any edit after submit are refused"),
+    ):
+        report.skip(case, title, reason)
+
+
 def phase_teach(ctx: Ctx) -> None:
     report = ctx.report
     state = ctx.state
@@ -1035,6 +1238,12 @@ def phase_teach(ctx: Ctx) -> None:
     admin = ctx.token("admin_a")
     teacher = ctx.token("teacher_1")
     run_id = state.run_id()
+
+    me = signed_request("GET", "/schools/me", token=admin, expect=(200,))
+    live_state = (me.data or {}).get("subscription_state")
+    if live_state != "active":
+        teach_without_subscription(ctx, str(live_state))
+        return
 
     # ---------------- CASE 5: class and students ----------------
     problems = []
@@ -1349,7 +1558,14 @@ def phase_teach(ctx: Ctx) -> None:
 def phase_compile(ctx: Ctx) -> None:
     report = ctx.report
     state = ctx.state
-    require(ctx, "class_id", "session_id", "term_id", "sheet1_id", "sheet2_id", "student_ids")
+    if not all(state.get(k) for k in ("class_id", "session_id", "term_id", "sheet1_id", "sheet2_id", "student_ids")):
+        skip_phase(report, [
+            ("13", "compile produces the correct totals, grades, averages and positions"),
+            ("13b", "the form teacher submits the compiled class to the administrator"),
+            ("14", "approve then publish works, the result locks, and the audit trail records it"),
+        ], "NOT COVERED: compilation needs enrolled students and two submitted score sheets, which need an "
+           "active subscription (see case 4g) and a PAYSTACK_SECRET_KEY to activate.")
+        return
     admin = ctx.token("admin_a")
     teacher = ctx.token("teacher_1")
     ids = state.get("student_ids") or []
@@ -1462,7 +1678,13 @@ def phase_compile(ctx: Ctx) -> None:
 def phase_results(ctx: Ctx) -> None:
     report = ctx.report
     state = ctx.state
-    require(ctx, "compilation_id", "student_a_id", "student_c_id")
+    if not all(state.get(k) for k in ("compilation_id", "student_a_id", "student_c_id")):
+        skip_phase(report, [
+            ("15", "a student reads only their own published result and is refused another's"),
+            ("16", "another school's compilation id returns 404 and no data leaks"),
+        ], "NOT COVERED: a published result and two student accounts are needed; both depend on an active "
+           "subscription and therefore on a PAYSTACK_SECRET_KEY.")
+        return
     cid = state.get("compilation_id")
 
     # ---------------- CASE 15 ----------------
@@ -1558,11 +1780,14 @@ def phase_webhook(ctx: Ctx) -> None:
     admin = ctx.token("admin_a")
     run_id = state.run_id()
 
-    if not PAYSTACK_SECRET_KEY:
+    if not PAYSTACK_SECRET_KEY or not state.get("payments_configured"):
         report.skip(
             "18", "the webhook rejects a bad signature and processes a replay once",
-            "PAYSTACK_SECRET_KEY is not set in this shell, so a valid signature cannot be produced. "
-            "Export the same test secret the API uses and re-run --phase webhook.",
+            "NOT COVERED: the deployed API answers 503 on /webhooks/paystack, so it holds no "
+            "PAYSTACK_SECRET_KEY and no valid signature can exist"
+            + ("" if PAYSTACK_SECRET_KEY else "; this shell has no PAYSTACK_SECRET_KEY either")
+            + ". Manual step: set PAYSTACK_SECRET_KEY on Render and export the same value here, then "
+            "re-run --phase webhook.",
         )
         return
 
@@ -1608,7 +1833,11 @@ def phase_webhook(ctx: Ctx) -> None:
 def phase_expiry(ctx: Ctx, fixture_applied: bool) -> None:
     report = ctx.report
     state = ctx.state
-    require(ctx, "school_id", "sheet1_id", "compilation_id", "student_a_id")
+    if not all(state.get(k) for k in ("school_id", "sheet1_id", "compilation_id", "student_a_id")):
+        report.skip("17", "an expired subscription blocks premium writes while reads still work",
+                    "NOT COVERED: the test school never had an active subscription to expire; case 4g "
+                    "verifies the same write gate in the unsubscribed state instead.")
+        return
     admin = ctx.token("admin_a")
     teacher = ctx.token("teacher_1")
     student_a = ctx.token("student_a")
@@ -1668,17 +1897,18 @@ def print_plan() -> None:
     print(f"  webhook  {'will be signed with PAYSTACK_SECRET_KEY' if PAYSTACK_SECRET_KEY else 'SKIP without PAYSTACK_SECRET_KEY'}")
     print("")
     plan = [
-        ("setup", "1, 2, 3a, 5a, 6, 7", "no payment needed"),
-        ("pay", "3b", "needs the checkout paid in a browser"),
-        ("teach", "5, 4, 4b, 8, 9, 10, 11, 12", "needs an active subscription"),
+        ("setup", "1, 2a-2d, 3a, 5a, 6, 7", "no payment needed"),
+        ("pay", "3b, 2c", "needs PAYSTACK_SECRET_KEY and a paid checkout"),
+        ("teach", "4g, 8s, 5, 4, 4b, 8, 9, 10, 11, 12", "needs an active subscription"),
         ("compile", "13, 13b, 14", "needs both sheets submitted"),
         ("results", "15, 16", "needs a published compilation"),
-        ("webhook", "18", "needs PAYSTACK_SECRET_KEY"),
+        ("webhook", "18", "needs PAYSTACK_SECRET_KEY on the API and in this shell"),
         ("expiry", "17", "needs the SQL fixture and --fixture-applied"),
     ]
     for phase, cases, note in plan:
-        print(f"  {phase:<8} cases {cases:<34} {note}")
-    print("\n  --phase all runs setup -> expiry and stops when a human step is needed.")
+        print(f"  {phase:<8} cases {cases:<40} {note}")
+    print("\n  --phase all runs every phase. Without a Paystack key it records the payment-gated")
+    print("  cases as SKIP (not covered) instead of stopping, so one run reports everything.")
 
 
 def self_test() -> int:
@@ -1719,6 +1949,7 @@ def main(argv=None) -> int:
     parser.add_argument("--teardown", action="store_true", help="print the SQL that removes the test data")
     parser.add_argument("--dry-run", action="store_true", help="print the plan, do not touch the network")
     parser.add_argument("--self-test", action="store_true", help="offline checks of the helpers")
+    parser.add_argument("--json", default="", metavar="PATH", help="write the PASS/FAIL matrix to a JSON file")
     args = parser.parse_args(argv)
 
     if args.notes:
@@ -1767,7 +1998,8 @@ def main(argv=None) -> int:
                 phase_setup(ctx)
             elif phase == "pay":
                 activated = phase_pay(ctx)
-                if args.phase == "all" and not activated:
+                if args.phase == "all" and not activated and state.get("payments_configured"):
+                    # A real payment has to happen in a browser: stop and say so.
                     print("\nStopping: pay the checkout, then continue with --phase pay.")
                     break
             elif phase == "teach":
@@ -1787,7 +2019,22 @@ def main(argv=None) -> int:
     except Exception as exc:  # a harness bug must still leave a readable report
         report.block("--", f"phase {phase} crashed", f"{type(exc).__name__}: {exc}")
 
-    return report.summary()
+    code = report.summary()
+    if args.json:
+        payload = {
+            "api": API_BASE,
+            "run_id": state.run_id(),
+            "payments_configured": bool(state.get("payments_configured")),
+            "counts": report.counts(),
+            "records": [
+                {"status": status, "case": case, "title": title, "detail": detail}
+                for status, case, title, detail in report.records
+            ],
+        }
+        with open(args.json, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, indent=2, sort_keys=True)
+        print(f"wrote {args.json}")
+    return code
 
 
 if __name__ == "__main__":

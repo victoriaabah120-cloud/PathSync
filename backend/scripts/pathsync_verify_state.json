@@ -1,0 +1,36 @@
+{
+  "accounts": {
+    "admin_a": {
+      "email": "pathsync-verify-261126071547-admin_a@example.test",
+      "password": "Vf-8cba7529652146ceb152!9aA",
+      "user_id": "827a2ea1-3a1a-4e32-9fef-5231cc9e2f3d"
+    },
+    "student_a": {
+      "email": "pathsync-verify-261126071547-student_a@example.test",
+      "password": "Vf-07218e0ea9af4b43bb02!9aA",
+      "user_id": "f13d11ee-99b9-4c56-adb8-a75f694133f9"
+    },
+    "teacher_1": {
+      "email": "pathsync-verify-261126071547-teacher_1@example.test",
+      "password": "Vf-bb87db9a2a90490da68a!9aA",
+      "user_id": "05821b56-d0cd-435a-a91b-ef0d84f85f29"
+    },
+    "teacher_2": {
+      "email": "pathsync-verify-261126071547-teacher_2@example.test",
+      "password": "Vf-deec73f3897c4e18a149!9aA",
+      "user_id": "1a32ad5a-2d9c-48e6-9890-c0d6ffdbb53d"
+    }
+  },
+  "admin_member_id": "511c3c8e-ad4d-43d8-af80-e3a10e7e0ece",
+  "class_id": "f0a9f3cb-dea0-4743-89e6-b8f31c6d06d2",
+  "payments_configured": false,
+  "reference": "src_6777083e_20261126071552",
+  "run_id": "261126071547",
+  "school_id": "6777083e-b7d4-4434-9b00-d1312b4304fb",
+  "school_slug": "pathsync-verify-261126071547-261126071549",
+  "session_id": "6bc63fd6-e0d7-440d-96c8-28f8d11ab78a",
+  "subject1_id": "fb36faff-4c98-43f1-8f99-ca599e1f57ed",
+  "subject2_id": "a91ecdb3-ce5c-495f-9ec2-55299f1901e1",
+  "teacher_member_id": "776b0e14-4892-4034-a79c-351792da6779",
+  "term_id": "f6d7014f-eb2a-44de-94c7-b7b2fdad543b"
+}

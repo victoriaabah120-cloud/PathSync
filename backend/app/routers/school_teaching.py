@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from ..auth import get_supabase
 from ..results_engine import grade_for, row_is_complete, subject_total, validate_row
-from ..school_schemas import ReasonBody, ScoresSave
+from ..school_schemas import ReasonBody, ScoresSave, SheetCreate
 from ..school_service import (
     active_session,
     active_term,
@@ -49,6 +49,35 @@ def _sheet(db, ctx: SchoolContext, sheet_id: str) -> dict:
     if not teaches and not (is_form and is_form.get("member_id") == ctx.member_id):
         raise HTTPException(status_code=403, detail="This class and subject are not assigned to you.")
     return sheet
+
+
+def _session_in_school(db, ctx: SchoolContext, session_id: str | None) -> dict:
+    """The named session, or the active one. Always scoped to the caller's school."""
+    if not session_id:
+        return active_session(db, ctx.school_id)
+    session = first_row(
+        db.table("src_sessions").select("*").eq("id", session_id).eq("school_id", ctx.school_id).limit(1)
+    )
+    if not session:
+        raise HTTPException(status_code=404, detail="That session is not in this school.")
+    return session
+
+
+def _term_in_school(db, ctx: SchoolContext, session_id: str, term_id: str | None) -> dict:
+    """The named term of that session, or the session's current term."""
+    if not term_id:
+        return active_term(db, ctx.school_id, session_id)
+    term = first_row(
+        db.table("src_terms")
+        .select("*")
+        .eq("id", term_id)
+        .eq("school_id", ctx.school_id)
+        .eq("session_id", session_id)
+        .limit(1)
+    )
+    if not term:
+        raise HTTPException(status_code=404, detail="That term is not in this session.")
+    return term
 
 
 def _require_form_teacher(db, ctx: SchoolContext, session_id: str, class_id: str) -> None:
@@ -121,6 +150,72 @@ def responsibilities(ctx: SchoolContext = Depends(require_staff)):
             if m.get("role") == "teacher"
         ],
     }
+
+
+@router.post("/schools/me/sheets")
+def create_sheet(body: SheetCreate, ctx: SchoolContext = Depends(require_staff)):
+    """Open the score sheet for one class and subject, or return the one already there.
+
+    A sheet is the unit of work a subject teacher fills in, so it is created on
+    demand: the dashboard lists the assignments, and the first visit to a sheet
+    creates the row. Only the teacher assigned to that class and subject (or the
+    administrator) may open it, and only while the school is subscribed.
+    """
+    db = get_supabase()
+    ensure_active_subscription(ctx)
+
+    session = first_row(
+        db.table("src_sessions").select("*").eq("id", body.session_id).eq("school_id", ctx.school_id).limit(1)
+    )
+    if not session:
+        raise HTTPException(status_code=404, detail="That session is not in this school.")
+    term = first_row(
+        db.table("src_terms")
+        .select("*")
+        .eq("id", body.term_id)
+        .eq("school_id", ctx.school_id)
+        .eq("session_id", session["id"])
+        .limit(1)
+    )
+    if not term:
+        raise HTTPException(status_code=404, detail="That term is not in this session.")
+    klass = first_row(
+        db.table("src_classes").select("*").eq("id", body.class_id).eq("school_id", ctx.school_id).limit(1)
+    )
+    if not klass:
+        raise HTTPException(status_code=404, detail="That class is not in this school.")
+    subject = first_row(
+        db.table("src_subjects").select("*").eq("id", body.subject_id).eq("school_id", ctx.school_id).limit(1)
+    )
+    if not subject:
+        raise HTTPException(status_code=404, detail="That subject is not in this school.")
+
+    offered = class_subjects(db, ctx.school_id, session["id"], klass["id"])
+    if subject["id"] not in {item["id"] for item in offered}:
+        raise HTTPException(status_code=422, detail="That subject is not offered by this class in this session.")
+
+    if not ctx.is_admin:
+        teaches = assignment_exists(db, ctx.member_id, session["id"], klass["id"], subject["id"], "subject")
+        is_form = form_teacher(db, ctx.school_id, session["id"], klass["id"])
+        if not teaches and not (is_form and is_form.get("member_id") == ctx.member_id):
+            raise HTTPException(status_code=403, detail="This class and subject are not assigned to you.")
+
+    existing = first_row(
+        db.table("src_score_sheets")
+        .select("*")
+        .eq("school_id", ctx.school_id)
+        .eq("session_id", session["id"])
+        .eq("term_id", term["id"])
+        .eq("class_id", klass["id"])
+        .eq("subject_id", subject["id"])
+        .limit(1)
+    )
+    if existing:
+        return {"sheet": existing, "created": False}
+
+    sheet = get_or_create_sheet(db, ctx, session["id"], term["id"], klass["id"], subject["id"])
+    audit(db, ctx, "sheet_opened", sheet_id=sheet.get("id"), detail={"subject": subject.get("name")})
+    return {"sheet": sheet, "created": True}
 
 
 @router.get("/schools/me/sheets/{sheet_id}")
@@ -278,8 +373,8 @@ def compile_class_view(
 ):
     """Compile the class. Blocked while any subject still has missing scores."""
     db = get_supabase()
-    session = first_row(db.table("src_sessions").select("*").eq("id", session_id).limit(1)) if session_id else active_session(db, ctx.school_id)
-    term = first_row(db.table("src_terms").select("*").eq("id", term_id).limit(1)) if term_id else active_term(db, ctx.school_id, session["id"])
+    session = _session_in_school(db, ctx, session_id)
+    term = _term_in_school(db, ctx, session["id"], term_id)
     _require_form_teacher(db, ctx, session["id"], class_id)
     ensure_active_subscription(ctx)
 
@@ -305,8 +400,8 @@ def submit_results(
 ):
     """Form teacher sends the compiled class to the school administrator."""
     db = get_supabase()
-    session = first_row(db.table("src_sessions").select("*").eq("id", session_id).limit(1)) if session_id else active_session(db, ctx.school_id)
-    term = first_row(db.table("src_terms").select("*").eq("id", term_id).limit(1)) if term_id else active_term(db, ctx.school_id, session["id"])
+    session = _session_in_school(db, ctx, session_id)
+    term = _term_in_school(db, ctx, session["id"], term_id)
     _require_form_teacher(db, ctx, session["id"], class_id)
 
     compilation = first_row(
@@ -338,8 +433,8 @@ def class_results(
 ):
     """Compiled results for a class, for the form teacher, admin and class result sheet."""
     db = get_supabase()
-    session = first_row(db.table("src_sessions").select("*").eq("id", session_id).limit(1)) if session_id else active_session(db, ctx.school_id)
-    term = first_row(db.table("src_terms").select("*").eq("id", term_id).limit(1)) if term_id else active_term(db, ctx.school_id, session["id"])
+    session = _session_in_school(db, ctx, session_id)
+    term = _term_in_school(db, ctx, session["id"], term_id)
     _require_form_teacher(db, ctx, session["id"], class_id)
 
     compilation = first_row(

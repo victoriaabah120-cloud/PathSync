@@ -38,6 +38,7 @@ from app.school_schemas import (  # noqa: E402
     SchoolRegister,
     ScoresSave,
     ScoreRow,
+    SheetCreate,
     SessionCreate,
     StudentCreate,
     SubjectCreate,
@@ -770,6 +771,113 @@ def test_teacher_cannot_open_an_unassigned_sheet():
         raise AssertionError("a teacher opened a subject that is not theirs")
     except HTTPException as exc:
         assert exc.status_code == 403
+
+
+def test_a_teacher_opens_the_score_sheet_for_an_assignment():
+    world = build_world()
+    activate_subscription(world["db"], capacity=5)
+    invite_and_activate(world, "teacher@school.test", "teacher-1")
+    member = next(m for m in world["db"].tables["src_school_members"] if m["user_id"] == "teacher-1")
+    school_admin.create_assignment(
+        AssignmentCreate(session_id=world["session"]["id"], member_id=member["id"], class_id=world["klass"]["id"], kind="subject", subject_id=world["maths"]["id"]),
+        ctx=ctx_for(world["db"], "admin-1"),
+    )
+    body = SheetCreate(
+        session_id=world["session"]["id"], term_id=world["term"]["id"], class_id=world["klass"]["id"], subject_id=world["maths"]["id"]
+    )
+    teacher_ctx = ctx_for(world["db"], "teacher-1")
+    first = school_teaching.create_sheet(body, ctx=teacher_ctx)
+    assert first["created"] is True and first["sheet"]["status"] == "draft"
+    assert first["sheet"]["member_id"] == member["id"]
+    # the same class and subject always maps to the same sheet
+    second = school_teaching.create_sheet(body, ctx=teacher_ctx)
+    assert second["created"] is False and second["sheet"]["id"] == first["sheet"]["id"]
+    assert len(world["db"].tables["src_score_sheets"]) == 1
+    # the sheet is now reachable from the teacher's own responsibilities
+    roles = school_teaching.responsibilities(ctx=teacher_ctx)["subject_roles"]
+    assert [r["sheet_id"] for r in roles] == [first["sheet"]["id"]]
+    # and the audit trail records the opening
+    assert any(e["action"] == "sheet_opened" for e in world["db"].tables["src_result_events"])
+
+
+def test_opening_a_sheet_is_limited_to_the_assignment_and_the_school():
+    world = build_world()
+    activate_subscription(world["db"], capacity=5)
+    invite_and_activate(world, "teacher@school.test", "teacher-1")
+    invite_and_activate(world, "other@school.test", "teacher-2")
+    member = next(m for m in world["db"].tables["src_school_members"] if m["user_id"] == "teacher-1")
+    school_admin.create_assignment(
+        AssignmentCreate(session_id=world["session"]["id"], member_id=member["id"], class_id=world["klass"]["id"], kind="subject", subject_id=world["maths"]["id"]),
+        ctx=ctx_for(world["db"], "admin-1"),
+    )
+    body = SheetCreate(
+        session_id=world["session"]["id"], term_id=world["term"]["id"], class_id=world["klass"]["id"], subject_id=world["maths"]["id"]
+    )
+    # a teacher without the assignment cannot open it
+    try:
+        school_teaching.create_sheet(body, ctx=ctx_for(world["db"], "teacher-2"))
+        raise AssertionError("an unassigned teacher opened a sheet")
+    except HTTPException as exc:
+        assert exc.status_code == 403
+    # the administrator can, for any class and subject of their school
+    assert school_teaching.create_sheet(body, ctx=ctx_for(world["db"], "admin-1"))["created"] is True
+    # a subject the class does not offer is refused
+    try:
+        school_teaching.create_sheet(
+            SheetCreate(
+                session_id=world["session"]["id"], term_id=world["term"]["id"], class_id=world["klass"]["id"], subject_id="no-such-subject"
+            ),
+            ctx=ctx_for(world["db"], "admin-1"),
+        )
+        raise AssertionError("a sheet was opened for a subject outside the school")
+    except HTTPException as exc:
+        assert exc.status_code == 404
+    # another school's session id is not a way in
+    world["db"].add("src_schools", {"id": "school-b", "name": "Other", "slug": "other", "email": "o@o.test", "status": "active", "created_by": "admin-b"})
+    world["db"].add("src_sessions", {"id": "sess-b", "school_id": "school-b", "name": "B", "is_current": True})
+    try:
+        school_teaching.create_sheet(
+            SheetCreate(
+                session_id="sess-b", term_id=world["term"]["id"], class_id=world["klass"]["id"], subject_id=world["maths"]["id"]
+            ),
+            ctx=ctx_for(world["db"], "admin-1"),
+        )
+        raise AssertionError("another school's session was accepted")
+    except HTTPException as exc:
+        assert exc.status_code == 404
+
+
+def test_opening_a_sheet_needs_an_active_subscription():
+    world = build_world()
+    body = SheetCreate(
+        session_id=world["session"]["id"], term_id=world["term"]["id"], class_id=world["klass"]["id"], subject_id=world["maths"]["id"]
+    )
+    try:
+        school_teaching.create_sheet(body, ctx=ctx_for(world["db"], "admin-1"))
+        raise AssertionError("a sheet was opened without a subscription")
+    except HTTPException as exc:
+        assert exc.status_code == 402
+
+
+def test_compile_and_results_reject_another_schools_session():
+    world = build_world()
+    db = world["db"]
+    activate_subscription(db, capacity=5)
+    add_student(world, "ADM900")
+    db.add("src_schools", {"id": "school-b", "name": "Other", "slug": "other", "email": "o@o.test", "status": "active", "created_by": "admin-b"})
+    db.add("src_sessions", {"id": "sess-b", "school_id": "school-b", "name": "B", "is_current": True})
+    db.add("src_terms", {"id": "term-b", "school_id": "school-b", "session_id": "sess-b", "name": "First", "position": 1})
+    admin_ctx = ctx_for(db, "admin-1")
+    for call in (
+        lambda: school_teaching.compile_class_view(world["klass"]["id"], session_id="sess-b", term_id="term-b", ctx=admin_ctx),
+        lambda: school_teaching.submit_results(world["klass"]["id"], session_id="sess-b", term_id="term-b", ctx=admin_ctx),
+        lambda: school_teaching.class_results(world["klass"]["id"], session_id="sess-b", term_id="term-b", ctx=admin_ctx),
+    ):
+        try:
+            call()
+            raise AssertionError("another school's session was accepted")
+        except HTTPException as exc:
+            assert exc.status_code == 404
 
 
 def main() -> int:
