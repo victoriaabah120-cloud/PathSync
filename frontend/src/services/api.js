@@ -29,14 +29,22 @@ async function post(path, body) {
 
   if (!response.ok) {
     let message = "Something went wrong. Please try again.";
+    let result = null;
     try {
       const payload = await response.json();
-      if (typeof payload.detail === "string") message = payload.detail;
+      if (typeof payload.detail === "string") {
+        message = payload.detail;
+      } else if (payload.detail && typeof payload.detail === "object") {
+        // The API can attach the result it already saved, e.g. on a repeat submission.
+        if (typeof payload.detail.message === "string") message = payload.detail.message;
+        if (payload.detail.result) result = payload.detail.result;
+      }
     } catch {
       /* keep the default message */
     }
     const error = new Error(message);
     error.status = response.status;
+    if (result) error.result = result;
     throw error;
   }
   return response.json();

@@ -43,4 +43,6 @@ class CourseRequest(PathRequest):
 
 class AssessmentSubmit(BaseModel):
     assessment_id: str = Field(min_length=8, max_length=64)
-    answers: list[int | None] = Field(default_factory=list, max_length=30)
+    # One index per question. Length and range are checked against the stored exam,
+    # so a short or padded sheet is rejected instead of being marked as wrong.
+    answers: list[int | None] = Field(min_length=1, max_length=30)

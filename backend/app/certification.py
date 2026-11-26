@@ -35,18 +35,51 @@ def course_status(lessons: list[dict]) -> dict:
     }
 
 
+def validate_answers(questions: list[dict], answers) -> str | None:
+    """Check a submitted answer sheet before it is marked.
+
+    Returns a human-readable problem, or None when the sheet is usable. The backend
+    never marks a sheet it cannot fully account for: one answer per question, each an
+    index of an option that actually exists.
+    """
+    rows = [q for q in (questions or []) if isinstance(q, dict)]
+    if not rows:
+        return "This assessment has no questions to mark."
+    if not isinstance(answers, list):
+        return "Send one answer per question."
+    if len(answers) != len(rows):
+        return f"Answer all {len(rows)} questions before submitting."
+
+    for index, given in enumerate(answers):
+        if type(given) is not int:
+            return f"Answer {index + 1} is missing or not a valid choice."
+        options = rows[index].get("options")
+        if not isinstance(options, list) or not options:
+            return "This assessment is damaged and cannot be marked."
+        if given < 0 or given >= len(options):
+            return f"Answer {index + 1} is not one of the available options."
+    return None
+
+
 def grade_assessment(questions: list[dict], answers: list) -> dict:
-    """Grade a final assessment. Unanswered questions count as wrong."""
+    """Grade a final assessment using the server-side answer key.
+
+    Unanswered or out-of-range answers are never counted as correct, even if a caller
+    bypasses validate_answers().
+    """
     rows = [q for q in (questions or []) if isinstance(q, dict)]
     total = len(rows)
     if total == 0:
         return {"correct": 0, "total": 0, "percent": 0, "passed": False, "pass_mark": PASS_MARK}
 
+    sheet = answers if isinstance(answers, list) else []
     correct = 0
     for index, question in enumerate(rows):
         expected = question.get("answer_index")
-        given = answers[index] if index < len(answers) else None
-        if isinstance(expected, int) and isinstance(given, int) and given == expected:
+        given = sheet[index] if index < len(sheet) else None
+        options = question.get("options")
+        within_range = isinstance(options, list) and type(given) is int and 0 <= given < len(options)
+        if type(expected) is int and within_range and given == expected:
             correct += 1
 
     percent = round((correct / total) * 100)

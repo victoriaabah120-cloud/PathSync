@@ -14,6 +14,7 @@ from app.certification import (  # noqa: E402
     certificate_code,
     course_status,
     grade_assessment,
+    validate_answers,
 )
 
 
@@ -28,6 +29,32 @@ def exam(correct=10, total=10, passed=True, status="submitted"):
         "score": round(correct / total * 100),
         "questions": [{"question": f"q{i}", "options": ["a", "b", "c", "d"], "answer_index": 1} for i in range(total)],
     }
+
+
+# ---------- answer sheets ----------
+SHEET = [{"question": f"q{i}", "options": ["a", "b", "c", "d"], "answer_index": 1} for i in range(4)]
+
+
+def test_a_complete_valid_sheet_is_accepted():
+    assert validate_answers(SHEET, [0, 1, 2, 3]) is None
+
+
+def test_incomplete_or_impossible_sheets_are_rejected():
+    assert "Answer all 4" in validate_answers(SHEET, [0, 1])
+    assert "Answer all 4" in validate_answers(SHEET, [0, 1, 2, 3, 0])
+    assert "missing" in validate_answers(SHEET, [0, 1, None, 3])
+    assert "not one of the available options" in validate_answers(SHEET, [0, 1, 9, 3])
+    assert "not one of the available options" in validate_answers(SHEET, [-1, 1, 2, 3])
+    assert "missing" in validate_answers(SHEET, [True, 1, 2, 3])
+    assert validate_answers([], []) is not None
+
+
+def test_grading_never_rewards_a_missing_or_impossible_answer():
+    key = [{"question": "q", "options": ["a", "b"], "answer_index": 1}] * 4
+    assert grade_assessment(key, [1, 1, 1, 1])["correct"] == 4
+    assert grade_assessment(key, [1, 1, 1])["correct"] == 3
+    assert grade_assessment(key, [1, 1, 1, 7])["correct"] == 3
+    assert grade_assessment(key, [1, 1, 1, None])["correct"] == 3
 
 
 # ---------- course progress ----------
@@ -46,13 +73,13 @@ def test_course_status_counts_and_names_remaining():
 
 # ---------- grading ----------
 def test_grading_all_correct():
-    questions = [{"answer_index": 1}] * 10
+    questions = [{"options": ["a", "b"], "answer_index": 1}] * 10
     result = grade_assessment(questions, [1] * 10)
     assert result["correct"] == 10 and result["percent"] == 100 and result["passed"] is True
 
 
 def test_grading_pass_mark_boundary():
-    questions = [{"answer_index": 1}] * 10
+    questions = [{"options": ["a", "b"], "answer_index": 1}] * 10
     eight = grade_assessment(questions, [1] * 8 + [0] * 2)
     seven = grade_assessment(questions, [1] * 7 + [0] * 3)
     assert eight["percent"] == 80 and eight["passed"] is True
@@ -61,7 +88,7 @@ def test_grading_pass_mark_boundary():
 
 
 def test_unanswered_questions_count_as_wrong():
-    questions = [{"answer_index": 0}] * 10
+    questions = [{"options": ["a", "b"], "answer_index": 0}] * 10
     result = grade_assessment(questions, [0, 0, None, 0])
     assert result["correct"] == 3 and result["passed"] is False
 

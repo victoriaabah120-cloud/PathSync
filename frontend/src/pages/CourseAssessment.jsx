@@ -67,6 +67,14 @@ export default function CourseAssessment() {
       setCertificate(data.certificate || null);
       setStage("result");
     } catch (err) {
+      // A repeat submission returns the result the backend already saved, so show it
+      // rather than a bare error.
+      if (err.result) {
+        setResult(err.result);
+        setCertificate(err.result.certificate || null);
+        setStage("result");
+        return;
+      }
       setMessage(err.message);
       setStage("error");
     }
