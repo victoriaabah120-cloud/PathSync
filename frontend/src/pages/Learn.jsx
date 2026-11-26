@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import { fetchCourseCertificate } from "../services/api.js";
 import { supabase } from "../services/supabase.js";
 import Loader from "../components/Loader.jsx";
 
@@ -20,19 +21,24 @@ export default function Learn() {
       .then(({ data }) => setLessons(data || []));
   }, [user.id]);
 
-  // The certificate only exists once the whole course is finished.
+  // The certificate only exists once the whole course is finished, and the backend is
+  // the only thing that can say so: it checks the course and looks the certificate up
+  // by its course code, so an old per-lesson certificate is never mistaken for one.
   useEffect(() => {
     if (!lessons || lessons.length === 0) return;
     if (!lessons.every((lesson) => lesson.status === "completed")) return;
-    supabase
-      .from("certificates")
-      .select("id,certificate_code,issued_at,score")
-      .eq("user_id", user.id)
-      .eq("career_field", profile.career_field)
-      .eq("specialization", profile.specialization)
-      .limit(1)
-      .then(({ data }) => setCertificate((data || [])[0] || null));
-  }, [lessons, user.id, profile.career_field, profile.specialization]);
+    let active = true;
+    fetchCourseCertificate(profile.career_field, profile.specialization)
+      .then((data) => {
+        if (active) setCertificate(data.certificate || null);
+      })
+      .catch(() => {
+        if (active) setCertificate(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [lessons, profile.career_field, profile.specialization]);
 
   if (lessons === null) return <Loader />;
 

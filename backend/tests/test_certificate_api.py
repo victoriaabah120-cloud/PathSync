@@ -172,7 +172,7 @@ class FakeDB:
         self.tables["course_assessments"].append(row)
         return row["id"]
 
-    def add_certificate(self, user_id, course=None):
+    def add_certificate(self, user_id, course=None, code=None, lesson=True):
         course = course or COURSE
         row = {
             "id": f"certificate-{len(self.tables['certificates']) + 1}",
@@ -183,11 +183,13 @@ class FakeDB:
             "specialization": course["specialization"],
             "score": 90,
             "lessons_completed": 3,
-            "certificate_code": certification.certificate_code(
-                user_id, course["career_field"], course["specialization"]
-            ),
+            "certificate_code": code
+            or certification.certificate_code(user_id, course["career_field"], course["specialization"]),
             "issued_at": "2026-11-26T00:00:00Z",
         }
+        if lesson:
+            row["lesson_id"] = "lesson-1"
+            row["lesson_title"] = "What is Corporate Law?"
         self.tables["certificates"].append(row)
         return row
 
@@ -470,6 +472,40 @@ def test_duplicate_insert_is_resolved_to_the_existing_certificate():
         api._existing_certificate = original
     assert payload["certificate"]["id"] == "certificate-race"
     assert len(db.tables["certificates"]) == 1
+
+
+# ------------------------------------- legacy per-lesson certificates
+def test_a_legacy_lesson_certificate_does_not_certify_the_course():
+    db = install(FakeDB())
+    db.add_lessons("student-1", ["completed", "current", "locked"])
+    legacy = db.add_certificate("student-1", code="PS-A2E29635")
+
+    # The course is unfinished, so the assessment must stay closed even though a
+    # certificate row for this course exists from the older build.
+    detail = expect(409, api.start_assessment, course_request(), user=FakeUser())
+    assert "Finish every lesson first" in detail
+
+    assert api.course_certificate(
+        career_field=COURSE["career_field"], specialization=COURSE["specialization"], user=FakeUser()
+    )["certificate"] is None
+
+    # Finishing the course issues a real course certificate next to the old record.
+    for lesson in db.tables["user_lessons"]:
+        lesson["status"] = "completed"
+    started = api.start_assessment(course_request(), user=FakeUser())
+    assert "assessment_id" in started, "a finished course must open the assessment"
+    payload = api.submit_assessment(submit_body(started["assessment_id"], CORRECT), user=FakeUser())
+    assert payload["certificate"]["certificate_code"] != legacy["certificate_code"]
+    assert len(db.tables["certificates"]) == 2
+
+    reported = api.course_certificate(
+        career_field=COURSE["career_field"], specialization=COURSE["specialization"], user=FakeUser()
+    )["certificate"]
+    assert reported["certificate_code"] == payload["certificate"]["certificate_code"]
+
+
+def test_course_certificate_endpoint_needs_login():
+    expect(401, get_current_user, "")
 
 
 # ------------------------------------------------------------- 6. ownership

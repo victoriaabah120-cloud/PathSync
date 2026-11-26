@@ -50,6 +50,34 @@ async function post(path, body) {
   return response.json();
 }
 
+// Authenticated GET: used where the answer depends on who is asking.
+async function authGet(path) {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+
+  let response;
+  try {
+    response = await fetch(`${BASE}${path}`, {
+      headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+    });
+  } catch {
+    throw new Error("Cannot reach the PathSync server. Check that the backend is running.");
+  }
+  if (!response.ok) {
+    let message = "Something went wrong. Please try again.";
+    try {
+      const payload = await response.json();
+      if (typeof payload.detail === "string") message = payload.detail;
+    } catch {
+      /* keep the default message */
+    }
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
+  }
+  return response.json();
+}
+
 // Public GET (certificate verification needs no login).
 async function get(path) {
   let response;
@@ -106,3 +134,7 @@ export const submitCourseAssessment = (assessmentId, answers) =>
 
 export const verifyCertificate = (code) =>
   get(`/certificates/verify/${encodeURIComponent(code)}`);
+
+// The backend decides whether a course certificate exists, so the app never infers it.
+export const fetchCourseCertificate = (careerField, specialization) =>
+  authGet(`/certificates/course?career_field=${encodeURIComponent(careerField)}&specialization=${encodeURIComponent(specialization)}`);

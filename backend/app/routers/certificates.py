@@ -8,7 +8,7 @@ security allows reads only, and issuance happens here with the service role.
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from ..ai import ask_json
 from ..auth import get_current_user, get_supabase
@@ -50,12 +50,17 @@ def _lessons(db, user_id: str, career_field: str, specialization: str) -> list[d
 
 
 def _existing_certificate(db, user_id: str, career_field: str, specialization: str):
+    """The course certificate for this learner, looked up by its deterministic code.
+
+    The code is derived from the learner and the course, so looking it up this way
+    ignores certificates the older build issued for a single lesson: those are a
+    different kind of record and must never count as course certification.
+    """
+    code = certificate_code(user_id, career_field, specialization)
     response = (
         db.table("certificates")
         .select("*")
-        .eq("user_id", user_id)
-        .eq("career_field", career_field)
-        .eq("specialization", specialization)
+        .eq("certificate_code", code)
         .limit(1)
         .execute()
     )
@@ -392,6 +397,18 @@ def submit_assessment(body: AssessmentSubmit, user=Depends(get_current_user)):
 
     payload["certificate"] = _issue_certificate(db, user, assessment, lessons)
     return payload
+
+
+@router.get("/certificates/course")
+def course_certificate(
+    career_field: str = Query(min_length=1, max_length=80),
+    specialization: str = Query(min_length=1, max_length=80),
+    user=Depends(get_current_user),
+):
+    """Does this learner hold the course certificate? Answered by the backend, so the
+    app never has to guess from whatever rows happen to exist."""
+    db = get_supabase()
+    return {"certificate": _existing_certificate(db, user.id, career_field, specialization)}
 
 
 @router.get("/certificates/verify/{code}")
