@@ -16,10 +16,12 @@ begin
     where table_schema = 'public' and table_name = 'certificates' and column_name = 'lesson_id'
   ) then
     alter table public.certificates alter column lesson_id drop not null;
-    update public.certificates
-       set course_title = coalesce(course_title, lesson_title, 'PathSync course')
-     where course_title is null;
-  end if;
+alter table public.certificates alter column lesson_title drop not null;
+
+update public.certificates
+   set course_title = coalesce(course_title, lesson_title, 'PathSync course')
+ where course_title is null;
+end if;
 end $$;
 
 update public.certificates set course_title = 'PathSync course' where course_title is null;
