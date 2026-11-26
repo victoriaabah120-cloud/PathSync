@@ -1,6 +1,7 @@
 """PathSync API. Start it with:  uvicorn app.main:app --reload --port 8000"""
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from .config import PRODUCTION_FRONTEND_URL, settings
 from .routers import (
@@ -33,6 +34,29 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# A missing table means the database migration for a module has not been run yet.
+# Say so plainly instead of returning an opaque 500.
+try:  # postgrest ships with supabase-py
+    from postgrest.exceptions import APIError as _PostgrestError
+
+    @app.exception_handler(_PostgrestError)
+    async def _database_error(request, exc):
+        text = str(exc)
+        if getattr(exc, "code", "") == "42P01" or "42P01" in text or "does not exist" in text:
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "detail": (
+                        "This feature needs a database migration that has not been run yet. "
+                        "Run supabase/migrations/2026-11-26-school-result-compiler.sql in Supabase."
+                    )
+                },
+            )
+        return JSONResponse(status_code=500, content={"detail": "The database rejected that request."})
+except Exception:  # pragma: no cover - postgrest is always present with supabase-py
+    pass
 
 
 @app.get("/health")
