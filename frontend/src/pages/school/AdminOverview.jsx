@@ -41,10 +41,10 @@ const BAR_TONE = {
 };
 
 const CONTROLS = [
-  { to: "/school/teachers", icon: "person_add", title: "Teachers & Invites", note: "Staff accounts and assignments" },
-  { to: "/school/classes", icon: "groups", title: "Classes & Roster", note: "Arms, students and enrolment" },
-  { to: "/school/settings", icon: "tune", title: "Grading Rules", note: "Assessment split, scale and ranking" },
-  { to: "/school/results", icon: "campaign", title: "Publish Results", note: "Approve and release results" },
+  { to: "/school/manage?tab=teachers", icon: "person_add", title: "Teachers & Invites", note: "Staff accounts and assignments" },
+  { to: "/school/manage?tab=classes", icon: "groups", title: "Classes & Roster", note: "Arms, students and enrolment" },
+  { to: "/school/compiler", icon: "tune", title: "Grading Rules", note: "Assessment split, scale and ranking" },
+  { to: "/school/approvals", icon: "campaign", title: "Publish Results", note: "Approve and release results" },
 ];
 
 function humanise(value) {
@@ -284,7 +284,7 @@ export default function AdminOverview() {
         {classes.length === 0 ? (
           <p className="rounded-2xl bg-surface-container-lowest p-space-lg shadow-md font-body-sm text-body-sm text-on-surface-variant">
             No classes yet.{" "}
-            <Link to="/school/classes" className="text-primary font-semibold">
+            <Link to="/school/manage?tab=classes" className="text-primary font-semibold">
               Create a class
             </Link>{" "}
             to start compiling results.
