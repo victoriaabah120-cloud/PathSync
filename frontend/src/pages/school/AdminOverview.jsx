@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Loader from "../../components/Loader.jsx";
 import { getClassResults, getSchoolContext, listClasses } from "../../services/schoolApi.js";
+import SchoolSetup from "./SchoolSetup.jsx";
 
 const ROLE_LABEL = {
   school_admin: "School administrator",
@@ -102,6 +103,7 @@ export default function AdminOverview() {
   const [pipeline, setPipeline] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [needsSetup, setNeedsSetup] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -126,7 +128,15 @@ export default function AdminOverview() {
       );
       setPipeline(Object.fromEntries(statuses));
     } catch (loadError) {
-      setError(loadError.message);
+      // A school with no academic session (or no term in it) is not broken, it is
+      // new: ask for the two records the rest of the module depends on instead of
+      // showing a dead-end error.
+      if (/academic session|term for this session/i.test(loadError.message || "")) {
+        setNeedsSetup(true);
+        setError("");
+      } else {
+        setError(loadError.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -137,6 +147,17 @@ export default function AdminOverview() {
   }, []);
 
   if (loading) return <Loader text="Loading your school..." />;
+
+  if (needsSetup) {
+    return (
+      <SchoolSetup
+        onDone={() => {
+          setNeedsSetup(false);
+          load();
+        }}
+      />
+    );
+  }
 
   if (error) {
     return (
