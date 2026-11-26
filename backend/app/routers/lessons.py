@@ -43,23 +43,30 @@ def generate_lesson(body: LessonRequest, user=Depends(get_current_user)):
         f"What this lesson must cover: {body.summary or body.title}.\n\n"
         "Write it the way a strong textbook chapter is written: teach the topic properly from the "
         "foundations up to a confident working understanding, at the level of someone starting this "
-        "course. Aim for 1200 to 1800 words in total. Do not pad with repetition, motivational filler "
+        "course. Aim for 1600 to 2400 words in total. Do not pad with repetition, motivational filler "
         "or obvious statements, and do not stop early. Every paragraph must teach something new.\n\n"
+        "Write developed paragraphs, not fragments. A paragraph should carry one idea through three to "
+        "six sentences: state the idea, explain how or why it works, and show what it means in practice. "
+        "Never leave a concept named but unexplained, and never use a one-line paragraph as a heading.\n\n"
         "Use clean Markdown inside the text fields: short paragraphs, '-' bullet lists, **bold** for "
         "the first use of a key term, fenced code blocks with a language tag for code, and a Markdown "
         "table when comparing options. Use LaTeX between $$ for any formula. Never write raw HTML.\n\n"
         "Cover, in this order:\n"
         "1. objectives: 3 to 5 sentences starting with a verb, each naming something the learner will "
         "be able to do afterwards.\n"
-        "2. introduction: 2 or 3 paragraphs. Why the topic matters, where it is used, and the "
-        "background the learner needs before the details.\n"
-        "3. sections: 5 to 7 sections. Each has a heading and a body of 2 to 4 paragraphs that "
-        "explains one idea fully: what it is, the exact terminology, how it works, why it matters, how "
-        "it connects to the ideas around it, and where it is used in practice. Include the mechanisms "
-        "and the principles behind the rules, not just the rules.\n"
-        "4. examples: 2 or 3 worked examples with a title and a body. Show the steps, the reasoning "
-        "between the steps and the result. Use a realistic scenario from the field; use code when the "
-        "topic is programming.\n"
+        "2. introduction: 3 or 4 paragraphs. Why the topic matters, where it is used, the background "
+        "the learner needs before the details, and a plain-language overview of what the chapter "
+        "covers and how it fits together.\n"
+        "3. sections: 5 to 7 sections. Each has a heading and a body of 3 to 5 developed paragraphs "
+        "that explains one idea fully: what it is, the exact terminology, how it works, why it matters, "
+        "how it connects to the ideas around it, and where it is used in practice. Define each key term "
+        "in one clear sentence the first time it appears, then use it consistently. Include the "
+        "mechanisms and the principles behind the rules, not just the rules, and add a concrete "
+        "illustration wherever a definition alone would leave the idea abstract.\n"
+        "4. examples: 2 or 3 worked examples with a title and a body of two or three paragraphs. Show "
+        "the steps, the reasoning between the steps and the result, then explain why that approach "
+        "works and how it would change in a slightly different case. Use a realistic scenario from the "
+        "field; use code when the topic is programming.\n"
         "5. common_mistakes: 3 or 4 items, each with 'mistake' (what learners get wrong) and 'fix' "
         "(how to avoid it or correct it).\n"
         "6. key_takeaways: 5 or 6 short sentences that recap the most important ideas.\n"
@@ -78,7 +85,7 @@ def generate_lesson(body: LessonRequest, user=Depends(get_current_user)):
         '"key_takeaways": ["..."], "practice": [{"question": "...", "answer": "markdown"}], '
         '"further_learning": ["..."]}'
     )
-    data = ask_json(SYSTEM, prompt, temperature=0.45, max_tokens=5000)
+    data = ask_json(SYSTEM, prompt, temperature=0.45, max_tokens=6000)
 
     sections = []
     for item in data.get("sections") or []:

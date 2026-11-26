@@ -15,14 +15,14 @@ function initials(name, email) {
  * variant "brand" (default): PathSync wordmark + dot + avatar
  * variant "back": back arrow + page title
  */
-export default function AppBar({ variant = "brand", title = "", back = "", right = null }) {
+export default function AppBar({ variant = "brand", title = "", back = "", right = null, wide = false }) {
   const { profile, user } = useAuth();
   const navigate = useNavigate();
   const label = initials(profile?.full_name, user?.email);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 pt-safe bg-surface-container-lowest/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
-      <div className="max-w-md mx-auto h-16 px-gutter flex items-center justify-between">
+      <div className={`${wide ? "max-w-5xl" : "max-w-md"} mx-auto h-16 px-gutter flex items-center justify-between`}>
         {variant === "back" ? (
           <div className="flex items-center gap-space-sm min-w-0">
             <button

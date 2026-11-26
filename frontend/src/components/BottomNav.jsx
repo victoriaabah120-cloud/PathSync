@@ -8,10 +8,10 @@ const ITEMS = [
   { to: "/profile", label: "Profile", icon: "account_circle" },
 ];
 
-export default function BottomNav() {
+export default function BottomNav({ wide = false }) {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 pb-safe bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_-2px_12px_rgba(0,0,0,0.04)]">
-      <div className="max-w-md mx-auto flex justify-around items-center h-16 px-space-xs">
+      <div className={`${wide ? "max-w-5xl" : "max-w-md"} mx-auto flex justify-around items-center h-16 px-space-xs`}>
         {ITEMS.map((item) => (
           <NavLink
             key={item.to}

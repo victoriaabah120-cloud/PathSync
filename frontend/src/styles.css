@@ -160,6 +160,58 @@
   main { padding: 0 !important; }
 }
 
+/* ---------- lesson reading typography ----------
+   Lesson pages are read like a textbook chapter, so the body text is larger, a
+   little heavier and set on a longer line than the compact .md used in the AI
+   Coach and in cards. Sizes step down on small screens; nothing here changes the
+   palette, the type scale tokens or any other screen. */
+.md-lesson {
+  font-size: clamp(1rem, 0.97rem + 0.17vw, 1.0625rem);
+  line-height: 1.78;
+  font-weight: 500;
+  letter-spacing: -0.002em;
+  color: rgb(var(--ps-on-surface));
+  text-wrap: pretty;
+}
+.md-lesson > :first-child { margin-top: 0; }
+.md-lesson > * + * { margin-top: 1.12em; }
+.md-lesson p { margin: 0; }
+.md-lesson p + p { margin-top: 1.12em; }
+.md-lesson h1, .md-lesson h2, .md-lesson h3, .md-lesson h4,
+.md-lesson h5, .md-lesson h6 {
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.012em;
+  margin-top: 1.75em;
+  color: rgb(var(--ps-on-surface));
+}
+.md-lesson h1 { font-size: 1.42rem; }
+.md-lesson h2 { font-size: 1.3rem; }
+.md-lesson h3 { font-size: 1.14rem; }
+.md-lesson h4, .md-lesson h5, .md-lesson h6 { font-size: 1.02rem; }
+.md-lesson ul, .md-lesson ol { padding-left: 1.4rem; }
+.md-lesson li { margin: 0.42em 0; line-height: 1.72; }
+.md-lesson li > ul, .md-lesson li > ol { margin: 0.35em 0; }
+.md-lesson strong { font-weight: 700; }
+.md-lesson blockquote {
+  border-left: 3px solid rgb(var(--ps-secondary));
+  background: rgb(var(--ps-surface-container-low));
+  padding: 0.85rem 1.1rem;
+  border-radius: 0 0.6rem 0.6rem 0;
+  font-weight: 500;
+}
+.md-lesson table { font-size: 0.96em; }
+.md-lesson code { font-weight: 500; }
+
+/* The opening paragraphs of a chapter read as a lead, slightly larger again. */
+.md-lead {
+  font-size: clamp(1.0625rem, 1.02rem + 0.2vw, 1.15rem);
+  line-height: 1.75;
+  font-weight: 500;
+  color: rgb(var(--ps-on-surface));
+}
+.md-lead > * + * { margin-top: 1.05em; }
+
 /* ---------- rendered Markdown (AI Coach answers and lesson bodies) ---------- */
 .md {
   font-size: 14px;
