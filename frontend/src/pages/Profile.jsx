@@ -301,6 +301,19 @@ export default function Profile() {
             <span className="material-symbols-outlined text-[18px] text-on-surface-variant">chevron_right</span>
           </Link>
 
+          <Link to="/school" className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-surface-container-low transition-colors text-left group">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-surface-container-high flex items-center justify-center text-on-surface-variant group-hover:text-secondary transition-colors">
+                <span className="material-symbols-outlined text-[20px]">school</span>
+              </div>
+              <div className="truncate">
+                <p className="font-label-lg text-label-lg font-bold text-on-surface">School Result Compiler</p>
+                <p className="font-body-sm text-body-sm text-on-surface-variant">Compile, approve and publish results</p>
+              </div>
+            </div>
+            <span className="material-symbols-outlined text-[20px] text-on-surface-variant shrink-0">chevron_right</span>
+          </Link>
+
           <Link to="/certificates" className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-surface-container-low transition-colors text-left group">
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-10 h-10 rounded-xl bg-surface-container-high flex items-center justify-center text-on-surface-variant group-hover:text-secondary transition-colors">

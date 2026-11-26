@@ -22,6 +22,9 @@ import Certificate from "./pages/Certificate.jsx";
 import Certificates from "./pages/Certificates.jsx";
 import Coach from "./pages/Coach.jsx";
 import Profile from "./pages/Profile.jsx";
+import SchoolGate from "./pages/school/SchoolGate.jsx";
+import AdminOverview from "./pages/school/AdminOverview.jsx";
+import ScoreEntry from "./pages/school/ScoreEntry.jsx";
 import CourseAssessment from "./pages/CourseAssessment.jsx";
 import VerifyCertificate from "./pages/VerifyCertificate.jsx";
 
@@ -93,6 +96,17 @@ export default function App() {
 
             <Route element={<Layout bar="back" title="Skill Module Detail" back="/learn" mainClass="pt-16 pb-8" />}>
               <Route path="/lesson/:id" element={<Lesson />} />
+            </Route>
+
+            <Route
+              element={<Layout bar="back" title="School Result Compiler" back="/profile" mainClass="pt-16 pb-8" />}
+            >
+              <Route path="/school" element={<SchoolGate />} />
+              <Route path="/school/admin" element={<AdminOverview />} />
+            </Route>
+
+            <Route element={<Layout bar="none" mainClass="pt-2 pb-8" />}>
+              <Route path="/school/sheet/:sheetId" element={<ScoreEntry />} />
             </Route>
 
             <Route element={<Layout bar="none" mainClass="pt-4 pb-8" />}>
