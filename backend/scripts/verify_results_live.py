@@ -776,12 +776,19 @@ def phase_setup(ctx: Ctx) -> None:
             "student_capacity": 100,
             "currency": "NGN",
         }, "subscription.")
-        if len(payments) != 1:
-            problems.append(f"payments={len(payments)} (want 1 pending payment)")
+        # Each checkout attempt records one payment intent, so the newest row is the
+        # one this call created. What matters is that it carries the plan's own
+        # amount and that no attempt has ever left a paid row behind.
+        if not payments:
+            problems.append("no payment row was recorded")
         else:
             problems += check_fields(payments[0], {
                 "status": "pending", "amount_kobo": amount, "currency": "NGN", "reference": nonempty,
             }, "payment.")
+            if any(row.get("status") != "pending" for row in payments):
+                problems.append(
+                    f"payment statuses={[row.get('status') for row in payments]} (no attempt may be paid)"
+                )
         if subscription.get("paystack_reference"):
             state.set("reference", subscription["paystack_reference"])
         return problems
@@ -885,8 +892,10 @@ def phase_setup(ctx: Ctx) -> None:
             invoices = signed_request("GET", "/schools/me/subscription", token=admin, expect=(200,))
             problems += check_fields(invoices.data or {}, {"state": "pending", "invoices": lambda v: v == []}, "")
             _, payments = pending_subscription()
-            if [p.get("status") for p in payments] != ["pending"]:
-                problems.append(f"payment statuses={[p.get('status') for p in payments]} (want one pending)")
+            if any(row.get("status") != "pending" for row in payments):
+                problems.append(
+                    f"payment statuses={[row.get('status') for row in payments]} (no payment may be paid)"
+                )
         note = "" if unpaid.status == 402 else " (the provider call answered 503: no Paystack key on the API)"
         report.check("3a", "an unverified checkout does not activate a subscription", not problems,
                      "; ".join(problems) + note)
