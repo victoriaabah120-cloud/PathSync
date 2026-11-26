@@ -70,8 +70,27 @@ create index if not exists course_assessments_user_idx
 
 alter table public.course_assessments enable row level security;
 
--- 4. Learners may read their certificates but never insert one.
-drop policy if exists "own certificates" on public.certificates;
-drop policy if exists "read own certificates" on public.certificates;
+-- 4. Learners may read their certificates but never write one.
+--
+-- This is the important one. The original schema gave learners a "for all" policy on
+-- certificates, so a signed-in browser could POST a certificate straight to Supabase
+-- and skip the assessment entirely. Every policy on the table is removed here (whatever
+-- it happens to be called) and only a select policy is put back, so the API is the
+-- only writer. Check it afterwards with:
+--   select policyname, cmd from pg_policies where tablename = 'certificates';
+--   -- expect exactly one row: "read own certificates" | SELECT
+alter table public.certificates enable row level security;
+
+do $$
+declare existing_policy record;
+begin
+  for existing_policy in
+    select policyname from pg_policies
+    where schemaname = 'public' and tablename = 'certificates'
+  loop
+    execute format('drop policy if exists %I on public.certificates', existing_policy.policyname);
+  end loop;
+end $$;
+
 create policy "read own certificates" on public.certificates
   for select using (auth.uid() = user_id);
