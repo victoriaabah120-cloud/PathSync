@@ -5,6 +5,15 @@ import { checkout, getPlans, getSchoolContext, registerSchool } from "../../serv
 import Loader from "../../components/Loader.jsx";
 
 const TYPES = ["Secondary school", "Primary school", "Combined school", "College of education", "Other"];
+
+// The API accepts the short codes, not the labels shown here.
+const SCHOOL_TYPE_CODES = {
+  "Secondary school": "secondary",
+  "Primary school": "primary",
+  "Combined school": "combined",
+  "College of education": "other",
+  Other: "other",
+};
 const HOME = { school_admin: "/school/admin", teacher: "/school/teacher", student: "/school/student" };
 
 const money = (kobo, currency) =>
@@ -54,7 +63,10 @@ export default function SchoolGate() {
     setMessage("");
     setStage("paying");
     try {
-      await registerSchool(form);
+      await registerSchool({
+        ...form,
+        school_type: SCHOOL_TYPE_CODES[form.school_type] || "other",
+      });
       const data = await getPlans();
       setPlans(data.plans || []);
       setStage("plans");
