@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from fastapi import Depends, HTTPException
 
 from .auth import get_current_user, get_supabase
+from .config import settings
 
 SCHOOL_ADMIN = "school_admin"
 TEACHER = "teacher"
@@ -75,6 +76,23 @@ def subscription_for(db, school_id: str) -> dict | None:
     return first_row(
         db.table("src_subscriptions").select("*").eq("school_id", school_id).order("created_at", desc=True).limit(1)
     )
+
+
+def subscriptions_enforced() -> bool:
+    """Whether the subscription gates apply.
+
+    False only when the server runs with SUBSCRIPTION_ENFORCEMENT=disabled. The
+    frontend can read this value but never change it, so the testing bypass cannot
+    be switched on from a browser.
+    """
+    return settings.subscriptions_enforced
+
+
+def effective_subscription_state(subscription: dict | None) -> str:
+    """The state the product acts on: live while testing mode bypasses billing."""
+    if not subscriptions_enforced():
+        return "active"
+    return subscription_state(subscription)
 
 
 def subscription_state(subscription: dict | None) -> str:
@@ -153,7 +171,13 @@ def require_student(ctx: SchoolContext = Depends(get_school_context)) -> SchoolC
 
 
 def ensure_active_subscription(ctx: SchoolContext) -> dict:
-    """Premium operations need a live subscription. Reads never do."""
+    """Premium operations need a live subscription. Reads never do.
+
+    While SUBSCRIPTION_ENFORCEMENT=disabled every school passes this gate, so the
+    module can be exercised without a plan or a payment.
+    """
+    if not subscriptions_enforced():
+        return ctx.subscription or {}
     state = subscription_state(ctx.subscription)
     if state == "active":
         return ctx.subscription or {}
@@ -171,7 +195,13 @@ def ensure_active_subscription(ctx: SchoolContext) -> dict:
 
 
 def ensure_capacity(ctx: SchoolContext, adding: int = 1) -> dict:
-    """Block registration beyond the plan's student capacity."""
+    """Block registration beyond the plan's student capacity.
+
+    While SUBSCRIPTION_ENFORCEMENT=disabled there is no plan and no ceiling; ordinary
+    data validation still runs on every student record.
+    """
+    if not subscriptions_enforced():
+        return ctx.subscription or {}
     subscription = ensure_active_subscription(ctx)
     capacity = int(subscription.get("student_capacity") or 0)
     used = active_student_count(get_supabase(), ctx.school_id)

@@ -65,6 +65,7 @@ function dateOf(iso) {
 // returns, so the card renders whichever shape the deployment serves.
 function readUsage(context) {
   const source = context.usage || context.students || {};
+  const unlimited = Boolean(source.unlimited) || context.billing_mode === "testing";
   const used = Number(source.students ?? source.used ?? 0);
   const capacity = Number(source.capacity ?? context.subscription?.student_capacity ?? 0);
   const remaining = Number(source.remaining ?? Math.max(capacity - used, 0));
@@ -75,8 +76,9 @@ function readUsage(context) {
       ? Math.min(Math.round((used / capacity) * 100), 100)
       : 0;
   return {
+    unlimited,
     used: Number.isFinite(used) ? used : 0,
-    capacity: Number.isFinite(capacity) ? capacity : 0,
+    capacity: unlimited ? 0 : Number.isFinite(capacity) ? capacity : 0,
     remaining: Number.isFinite(remaining) ? remaining : 0,
     percent: Number.isFinite(percent) ? percent : 0,
   };
@@ -193,36 +195,46 @@ export default function AdminOverview() {
               {usage.used}
               <span className="font-headline-sm text-headline-sm font-normal text-on-surface-variant">
                 {" "}
-                / {usage.capacity || "—"}
+                {usage.unlimited ? "students" : `/ ${usage.capacity || "—"}`}
               </span>
             </p>
           </div>
-          <span
-            className={`shrink-0 px-2.5 py-1 rounded-full font-label-sm text-label-sm font-bold ${
-              full ? "bg-error text-on-error" : nearFull ? "bg-amber-500 text-black" : "bg-surface-container-high text-on-surface-variant"
-            }`}
-          >
-            {usage.percent}%
-          </span>
+          {usage.unlimited ? (
+            <span className="shrink-0 px-2.5 py-1 rounded-full font-label-sm text-label-sm font-bold bg-surface-container-high text-on-surface-variant">
+              Testing
+            </span>
+          ) : (
+            <span
+              className={`shrink-0 px-2.5 py-1 rounded-full font-label-sm text-label-sm font-bold ${
+                full ? "bg-error text-on-error" : nearFull ? "bg-amber-500 text-black" : "bg-surface-container-high text-on-surface-variant"
+              }`}
+            >
+              {usage.percent}%
+            </span>
+          )}
         </div>
 
-        <progress
-          value={usage.capacity ? Math.min(usage.used, usage.capacity) : 0}
-          max={usage.capacity || 1}
-          aria-label="Student capacity used"
-          aria-valuetext={`${usage.used} of ${usage.capacity} students`}
-          className={`h-2.5 w-full overflow-hidden rounded-full bg-surface-container-high appearance-none [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-bar]:bg-surface-container-high [&::-webkit-progress-value]:rounded-full [&::-moz-progress-bar]:rounded-full ${barTone}`}
-        />
+        {!usage.unlimited && (
+          <progress
+            value={usage.capacity ? Math.min(usage.used, usage.capacity) : 0}
+            max={usage.capacity || 1}
+            aria-label="Student capacity used"
+            aria-valuetext={`${usage.used} of ${usage.capacity} students`}
+            className={`h-2.5 w-full overflow-hidden rounded-full bg-surface-container-high appearance-none [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-bar]:bg-surface-container-high [&::-webkit-progress-value]:rounded-full [&::-moz-progress-bar]:rounded-full ${barTone}`}
+          />
+        )}
 
         <p className="font-body-sm text-body-sm text-on-surface-variant">
-          {usage.capacity
+          {usage.unlimited
+            ? "Subscriptions are switched off while the result compiler is being tested, so student registration is not limited by a plan."
+            : usage.capacity
             ? full
               ? "Every place on this plan is taken. New students are blocked until you upgrade."
               : `${usage.remaining} of ${usage.capacity} places remaining${planName ? ` on ${planName}` : ""}.`
             : "No plan is active yet, so student registration is blocked."}
         </p>
 
-        {(full || nearFull || usage.capacity === 0) && (
+        {!usage.unlimited && (full || nearFull || usage.capacity === 0) && (
           <Link
             to="/school/subscription"
             className="h-11 rounded-xl bg-primary text-on-primary font-label-lg text-label-lg font-bold flex items-center justify-center gap-space-xs"
@@ -243,7 +255,9 @@ export default function AdminOverview() {
         <dl className="grid grid-cols-2 gap-space-sm">
           <div className="min-w-0">
             <dt className="font-label-sm text-label-sm text-on-surface-variant">Plan</dt>
-            <dd className="font-label-lg text-label-lg text-on-surface truncate">{planName || "No plan"}</dd>
+            <dd className="font-label-lg text-label-lg text-on-surface truncate">
+              {usage.unlimited ? "Not required while testing" : planName || "No plan"}
+            </dd>
           </div>
           <div className="min-w-0">
             <dt className="font-label-sm text-label-sm text-on-surface-variant">

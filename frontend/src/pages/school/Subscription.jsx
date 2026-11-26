@@ -97,6 +97,7 @@ export default function Subscription() {
   const subscription = detail?.subscription || null;
   const plan = detail?.plan || null;
   const state = detail?.state || "none";
+  const testing = detail?.billing_mode === "testing" || context?.billing_mode === "testing";
   const used = Number(detail?.students?.used || 0);
   const capacity = Number(detail?.students?.capacity || 0);
   const invoices = detail?.invoices || [];
@@ -229,18 +230,25 @@ export default function Subscription() {
                 <button
                   type="button"
                   onClick={() => startCheckout(option.code)}
-                  disabled={busy === option.code || isCurrent}
+                  disabled={testing || busy === option.code || isCurrent}
                   className="mt-3 w-full rounded-xl bg-secondary px-4 py-2.5 font-label-md text-label-md text-on-secondary disabled:opacity-50"
                 >
-                  {isCurrent ? "Your current plan" : busy === option.code ? "Opening checkout..." : `Choose ${option.name}`}
+                  {testing
+                    ? "Subscriptions are switched off"
+                    : isCurrent
+                    ? "Your current plan"
+                    : busy === option.code
+                    ? "Opening checkout..."
+                    : `Choose ${option.name}`}
                 </button>
               </div>
             );
           })}
         </div>
         <p className="mt-3 font-body-sm text-body-sm text-on-surface-variant">
-          A plan only becomes active after Paystack confirms the payment to our server. Prices come from the plan
-          records, so they change without a code release.
+          {testing
+            ? "Subscriptions and payments are switched off while the result compiler is being tested, so no school is charged and no plan is needed. The plans stay here, with their prices, ready for when billing is enabled again."
+            : "A plan only becomes active after Paystack confirms the payment to our server. Prices come from the plan records, so they change without a code release."}
         </p>
       </SectionCard>
 

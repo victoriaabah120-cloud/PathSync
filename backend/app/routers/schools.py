@@ -23,6 +23,7 @@ from ..school_tenancy import (
     get_school_context,
     require_admin,
     rows,
+    effective_subscription_state,
     subscription_for,
     subscription_state,
 )
@@ -116,7 +117,8 @@ def register_school(body: SchoolRegister, user=Depends(get_current_user)):
         "school": school_row,
         "member": created_member[0],
         "subscription": None,
-        "subscription_state": "none",
+        "subscription_state": effective_subscription_state(None),
+        "billing_mode": settings.billing_mode,
     }
 
 
@@ -124,22 +126,27 @@ def register_school(body: SchoolRegister, user=Depends(get_current_user)):
 def my_school(ctx: SchoolContext = Depends(get_school_context)):
     """The caller's school, role, subscription and capacity usage."""
     db = get_supabase()
-    state = subscription_state(ctx.subscription)
-    capacity = int((ctx.subscription or {}).get("student_capacity") or 0)
+    state = effective_subscription_state(ctx.subscription)
+    unlimited = not settings.subscriptions_enforced
+    capacity = None if unlimited else int((ctx.subscription or {}).get("student_capacity") or 0)
     plan = None
     if ctx.subscription:
         plan = first_row(db.table("src_plans").select("*").eq("id", ctx.subscription["plan_id"]).limit(1))
+    used = active_student_count(db, ctx.school_id)
     return {
         "school": ctx.school,
         "role": ctx.role,
         "member": ctx.member,
         "subscription": ctx.subscription,
         "subscription_state": state,
+        "subscription_state_actual": subscription_state(ctx.subscription),
+        "billing_mode": settings.billing_mode,
         "plan": _plan_public(plan) if plan else None,
         "students": {
-            "used": active_student_count(db, ctx.school_id),
+            "used": used,
             "capacity": capacity,
-            "remaining": max(capacity - active_student_count(db, ctx.school_id), 0) if capacity else 0,
+            "remaining": None if unlimited else (max(capacity - used, 0) if capacity else 0),
+            "unlimited": unlimited,
         },
     }
 
@@ -258,11 +265,18 @@ def subscription_detail(ctx: SchoolContext = Depends(require_admin)):
     payments = rows(
         db.table("src_payments").select("*").eq("school_id", ctx.school_id).order("created_at", desc=True).limit(50)
     )
+    unlimited = not settings.subscriptions_enforced
     return {
         "subscription": subscription,
-        "state": subscription_state(subscription),
+        "state": effective_subscription_state(subscription),
+        "state_actual": subscription_state(subscription),
+        "billing_mode": settings.billing_mode,
         "plan": _plan_public(plan) if plan else None,
-        "students": {"used": active_student_count(db, ctx.school_id), "capacity": int((subscription or {}).get("student_capacity") or 0)},
+        "students": {
+            "used": active_student_count(db, ctx.school_id),
+            "capacity": None if unlimited else int((subscription or {}).get("student_capacity") or 0),
+            "unlimited": unlimited,
+        },
         "invoices": invoices,
         "payments": payments,
     }

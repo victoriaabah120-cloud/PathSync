@@ -63,10 +63,16 @@ export default function SchoolGate() {
     setMessage("");
     setStage("paying");
     try {
-      await registerSchool({
+      const registered = await registerSchool({
         ...form,
         school_type: SCHOOL_TYPE_CODES[form.school_type] || "other",
       });
+      // While subscriptions are switched off server-side there is no plan to choose:
+      // the administrator goes straight to the dashboard.
+      if (registered?.billing_mode === "testing" || registered?.subscription_state === "active") {
+        navigate("/school/admin", { replace: true });
+        return;
+      }
       const data = await getPlans();
       setPlans(data.plans || []);
       setStage("plans");

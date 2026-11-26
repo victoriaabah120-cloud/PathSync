@@ -1,0 +1,5 @@
+# The app is a single-page React application. Render's static host serves files that
+# exist and returns its own 404 for anything else, which is why opening or refreshing
+# a deep link such as /school/admin said "not found". Every path now falls back to
+# index.html with a 200 so the client router can render the route.
+/*  /index.html  200

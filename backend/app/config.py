@@ -18,10 +18,26 @@ class Settings:
     paystack_secret_key: str = os.getenv("PAYSTACK_SECRET_KEY", "").strip()
     paystack_public_key: str = os.getenv("PAYSTACK_PUBLIC_KEY", "").strip()
     environment: str = os.getenv("ENVIRONMENT", "development").strip().lower()
+    # Subscription enforcement. The default, "enforced", applies every subscription
+    # gate. Only the exact value "disabled" switches the gates off, which is the
+    # testing mode used while the result compiler is being evaluated: no plan, no
+    # payment, no student capacity limit. It is read from the server environment, so
+    # a browser cannot turn it on, and any other value (including a typo) keeps the
+    # gates in force. Subscription tables, plans, Paystack and payment history are
+    # untouched either way; restoring "enforced" brings the real system back.
+    subscription_enforcement: str = os.getenv("SUBSCRIPTION_ENFORCEMENT", "enforced").strip().lower()
 
     @property
     def is_development(self) -> bool:
         return self.environment == "development"
+
+    @property
+    def subscriptions_enforced(self) -> bool:
+        return self.subscription_enforcement != "disabled"
+
+    @property
+    def billing_mode(self) -> str:
+        return "enforced" if self.subscriptions_enforced else "testing"
 
     def missing(self) -> list[str]:
         names = {
