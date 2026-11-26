@@ -70,6 +70,40 @@ export default function CareerIntent() {
 
         <button
           type="button"
+          onClick={() => navigate("/school")}
+          className="group relative w-full text-left bg-surface-container-lowest p-space-lg rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer active:scale-[0.99] focus:outline-none"
+        >
+          <div className="flex items-start gap-space-md">
+            <div className="w-14 h-14 rounded-2xl bg-tertiary-fixed flex items-center justify-center shrink-0 text-on-tertiary-fixed shadow-sm group-hover:scale-105 group-hover:bg-tertiary group-hover:text-on-tertiary transition-all duration-200">
+              <span className="material-symbols-outlined text-3xl filled">fact_check</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="font-headline-sm text-headline-sm text-on-surface font-bold group-hover:text-secondary transition-colors">
+                  School Result Compiler
+                </h2>
+                <div className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant group-hover:bg-secondary group-hover:text-on-secondary transition-all">
+                  <span className="material-symbols-outlined text-lg">arrow_forward</span>
+                </div>
+              </div>
+              <p className="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+                Register your school, manage students and teachers, enter scores, compile results and publish
+                student report cards.
+              </p>
+              <div className="flex flex-wrap items-center gap-1.5 mt-space-sm pt-space-xs">
+                <span className="font-label-sm text-label-sm px-2.5 py-0.5 rounded-full bg-surface-container text-on-surface-variant">
+                  For Schools
+                </span>
+                <span className="font-label-sm text-label-sm px-2.5 py-0.5 rounded-full bg-surface-container text-on-surface-variant">
+                  Report Cards
+                </span>
+              </div>
+            </div>
+          </div>
+        </button>
+
+        <button
+          type="button"
           onClick={() => navigate("/assessment")}
           className="group relative w-full text-left bg-surface-container-lowest p-space-lg rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer active:scale-[0.99] focus:outline-none"
         >
