@@ -16,6 +16,7 @@ export default function Layout({
   back = "",
   mainClass = "",
   width = "narrow",
+  home = "/home",
 }) {
   const wide = width === "wide";
   const padding = nav ? "px-gutter pt-16 pb-24" : "px-gutter pt-16 pb-8";
@@ -24,7 +25,7 @@ export default function Layout({
   return (
     <div className="bg-surface font-body-md text-on-surface flex flex-col min-h-screen">
       <div className={`w-full ${shell} mx-auto flex flex-col min-h-screen relative`}>
-        {bar !== "none" && <AppBar variant={bar} title={title} back={back} wide={wide} />}
+        {bar !== "none" && <AppBar variant={bar} title={title} back={back} wide={wide} home={home} />}
         <main className={`flex-1 flex flex-col relative w-full bg-surface ${padding} ${mainClass}`}>
           <Outlet />
         </main>

@@ -93,6 +93,29 @@ export default function App() {
             <Route path="/specializations/:fieldId" element={<Specializations />} />
           </Route>
 
+          {/* School accounts are not learners: they must reach the compiler without a
+              career field, so these routes sit outside the career guard. */}
+          <Route
+            element={<Layout bar="back" title="School Result Compiler" back="/school" home="/school" mainClass="pt-16 pb-8" />}
+          >
+            <Route path="/school" element={<SchoolGate />} />
+            <Route path="/school/admin" element={<AdminOverview />} />
+            <Route path="/school/teacher" element={<TeacherDashboard />} />
+            <Route path="/school/compiler" element={<CompilerOverview />} />
+            <Route path="/school/compile/:classId" element={<Compilation />} />
+            <Route path="/school/approvals" element={<Approvals />} />
+            <Route path="/school/approvals/:classId" element={<Approvals />} />
+            <Route path="/school/report/:studentId" element={<ReportCard />} />
+            <Route path="/school/subscription" element={<Subscription />} />
+            <Route path="/schools/subscription" element={<Subscription />} />
+            <Route path="/school/student" element={<StudentDashboard />} />
+            <Route path="/school/manage" element={<Manage />} />
+          </Route>
+
+          <Route element={<Layout bar="none" mainClass="pt-2 pb-8" />}>
+            <Route path="/school/sheet/:sheetId" element={<ScoreEntry />} />
+          </Route>
+
           <Route element={<RequireCareer />}>
             <Route element={<Layout nav />}>
               <Route path="/home" element={<Home />} />
@@ -106,26 +129,6 @@ export default function App() {
               <Route path="/lesson/:id" element={<Lesson />} />
             </Route>
 
-            <Route
-              element={<Layout bar="back" title="School Result Compiler" back="/profile" mainClass="pt-16 pb-8" />}
-            >
-              <Route path="/school" element={<SchoolGate />} />
-              <Route path="/school/admin" element={<AdminOverview />} />
-              <Route path="/school/teacher" element={<TeacherDashboard />} />
-              <Route path="/school/compiler" element={<CompilerOverview />} />
-              <Route path="/school/compile/:classId" element={<Compilation />} />
-              <Route path="/school/approvals" element={<Approvals />} />
-              <Route path="/school/approvals/:classId" element={<Approvals />} />
-              <Route path="/school/report/:studentId" element={<ReportCard />} />
-              <Route path="/school/subscription" element={<Subscription />} />
-              <Route path="/schools/subscription" element={<Subscription />} />
-              <Route path="/school/student" element={<StudentDashboard />} />
-              <Route path="/school/manage" element={<Manage />} />
-            </Route>
-
-            <Route element={<Layout bar="none" mainClass="pt-2 pb-8" />}>
-              <Route path="/school/sheet/:sheetId" element={<ScoreEntry />} />
-            </Route>
 
             <Route element={<Layout bar="none" mainClass="pt-4 pb-8" />}>
               <Route path="/course-assessment" element={<CourseAssessment />} />

@@ -15,7 +15,7 @@ function initials(name, email) {
  * variant "brand" (default): PathSync wordmark + dot + avatar
  * variant "back": back arrow + page title
  */
-export default function AppBar({ variant = "brand", title = "", back = "", right = null, wide = false }) {
+export default function AppBar({ variant = "brand", title = "", back = "", right = null, wide = false, home = "/home" }) {
   const { profile, user } = useAuth();
   const navigate = useNavigate();
   const label = initials(profile?.full_name, user?.email);
@@ -47,7 +47,7 @@ export default function AppBar({ variant = "brand", title = "", back = "", right
           <ThemeToggle />
           {variant === "back" && (
             <Link
-              to="/home"
+              to={home}
               aria-label="Back to the main menu"
               title="Main menu"
               className="w-10 h-10 -mr-2 rounded-full flex items-center justify-center text-on-surface active:bg-surface-container-low transition-colors"
