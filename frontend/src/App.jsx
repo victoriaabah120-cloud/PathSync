@@ -25,6 +25,11 @@ import Profile from "./pages/Profile.jsx";
 import SchoolGate from "./pages/school/SchoolGate.jsx";
 import AdminOverview from "./pages/school/AdminOverview.jsx";
 import ScoreEntry from "./pages/school/ScoreEntry.jsx";
+import TeacherDashboard from "./pages/school/TeacherDashboard.jsx";
+import Compilation from "./pages/school/Compilation.jsx";
+import Approvals from "./pages/school/Approvals.jsx";
+import ReportCard from "./pages/school/ReportCard.jsx";
+import CompilerOverview from "./pages/school/CompilerOverview.jsx";
 import CourseAssessment from "./pages/CourseAssessment.jsx";
 import VerifyCertificate from "./pages/VerifyCertificate.jsx";
 
@@ -103,6 +108,12 @@ export default function App() {
             >
               <Route path="/school" element={<SchoolGate />} />
               <Route path="/school/admin" element={<AdminOverview />} />
+              <Route path="/school/teacher" element={<TeacherDashboard />} />
+              <Route path="/school/compiler" element={<CompilerOverview />} />
+              <Route path="/school/compile/:classId" element={<Compilation />} />
+              <Route path="/school/approvals" element={<Approvals />} />
+              <Route path="/school/approvals/:classId" element={<Approvals />} />
+              <Route path="/school/report/:studentId" element={<ReportCard />} />
             </Route>
 
             <Route element={<Layout bar="none" mainClass="pt-2 pb-8" />}>

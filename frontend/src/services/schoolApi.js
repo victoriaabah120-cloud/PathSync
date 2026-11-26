@@ -10,6 +10,12 @@ const q = (params) =>
 
 const get = (path, params) => authGet(params ? `${path}?${q(params)}` : path);
 
+// POST endpoints that take query parameters instead of a body.
+const withQuery = (path, params) => {
+  const query = q(params || {});
+  return query ? `${path}?${query}` : path;
+};
+
 // ---------- school, plans, subscription ----------
 export const getSchoolContext = () => get("/schools/me");
 export const getPlans = () => get("/schools/plans");
@@ -58,8 +64,10 @@ export const reopenSheet = (sheetId, reason) => post(`/schools/me/sheets/${sheet
 export const returnSheet = (sheetId, reason) => post(`/schools/me/sheets/${sheetId}/return`, { reason });
 
 // ---------- compilation and approval ----------
-export const compileClass = (classId, body) => post(`/schools/me/classes/${classId}/compile`, body);
-export const submitResults = (classId, body) => post(`/schools/me/classes/${classId}/submit-results`, body);
+export const compileClass = (classId, params) =>
+  post(withQuery(`/schools/me/classes/${classId}/compile`, params), {});
+export const submitResults = (classId, params) =>
+  post(withQuery(`/schools/me/classes/${classId}/submit-results`, params), {});
 export const getClassResults = (classId, params) => get(`/schools/me/classes/${classId}/results`, params);
 export const approveCompilation = (id) => post(`/schools/me/compilations/${id}/approve`, {});
 export const returnCompilation = (id, reason) => post(`/schools/me/compilations/${id}/return`, { reason });
