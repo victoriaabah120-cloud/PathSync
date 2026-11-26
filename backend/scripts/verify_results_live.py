@@ -25,7 +25,9 @@ REQUIRED ENVIRONMENT
                             produced, so those cases are SKIPped as NOT COVERED.
                             A signature that cannot be forged is the whole point,
                             so the harness never fakes one.
-    VERIFY_EMAIL_DOMAIN     optional, default example.test
+    VERIFY_EMAIL_DOMAIN     optional, default gmail.com (Paystack rejects
+                            reserved domains such as example.test, so the
+                            checkout cannot be opened with one)
     PATHSYNC_API            optional, default https://pathsync.onrender.com
 
 PHASES
@@ -94,7 +96,7 @@ API_BASE = os.environ.get("PATHSYNC_API", "https://pathsync.onrender.com").rstri
 AUTH_BASE = os.environ.get("SUPABASE_AUTH_URL", "https://xmhscjxirtaufafqzhll.supabase.co").rstrip("/")
 SUPA_KEY = os.environ.get("SUPA_KEY", "").strip()
 PAYSTACK_SECRET_KEY = os.environ.get("PAYSTACK_SECRET_KEY", "").strip()
-EMAIL_DOMAIN = os.environ.get("VERIFY_EMAIL_DOMAIN", "example.test").strip() or "example.test"
+EMAIL_DOMAIN = os.environ.get("VERIFY_EMAIL_DOMAIN", "gmail.com").strip() or "gmail.com"
 
 DEFAULT_STATE = "pathsync_verify_state.json"
 DEFAULT_CAPACITY_FILL_LIMIT = 150  # do not send more than this many student creates
@@ -474,7 +476,7 @@ class Ctx:
         account = accounts.get(key)
         if not account:
             run_id = self.state.run_id()
-            account = {"email": f"pathsync-verify-{run_id}-{key}@{EMAIL_DOMAIN}", "password": make_password()}
+            account = {"email": f"pathsync.verify.{run_id}.{key}@{EMAIL_DOMAIN}", "password": make_password()}
             accounts[key] = account
             self.state.save()
         return account
@@ -997,7 +999,7 @@ def phase_setup(ctx: Ctx) -> None:
     # Email binding: a code issued to another address must be refused.
     other = signed_request(
         "POST", "/schools/me/teachers/invite", token=admin,
-        body={"email": f"pathsync-verify-{run_id}-not-teacher2@{EMAIL_DOMAIN}"}, expect=(200,),
+        body={"email": f"pathsync.verify.{run_id}.not.teacher2@{EMAIL_DOMAIN}"}, expect=(200,),
     )
     wrong = signed_request(
         "POST", "/schools/me/join", token=teacher2,
