@@ -132,7 +132,6 @@ export default function AdminOverview() {
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (loading) return <Loader text="Loading your school..." />;
@@ -200,7 +199,7 @@ export default function AdminOverview() {
           </div>
           <span
             className={`shrink-0 px-2.5 py-1 rounded-full font-label-sm text-label-sm font-bold ${
-              full ? "bg-error text-on-error" : nearFull ? "bg-amber-500 text-on-primary" : "bg-surface-container-high text-on-surface-variant"
+              full ? "bg-error text-on-error" : nearFull ? "bg-amber-500 text-black" : "bg-surface-container-high text-on-surface-variant"
             }`}
           >
             {usage.percent}%

@@ -127,7 +127,6 @@ export default function ScoreEntry() {
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sheetId]);
 
   useEffect(() => {
@@ -280,10 +279,13 @@ export default function ScoreEntry() {
       <section className="bg-surface-container-lowest rounded-2xl p-space-md shadow-md flex items-center justify-between gap-space-md">
         <div className="min-w-0">
           <p className="font-headline-sm text-headline-sm font-semibold text-on-surface truncate">
-            {sheet.class_name || "Class"} · {sheet.subject_name || "Subject"}
+            {[sheetData?.class?.name || sheet.class_name, sheetData?.subject?.name || sheet.subject_name]
+              .filter(Boolean)
+              .join(" · ") || "Score sheet"}
           </p>
           <p className="font-body-sm text-body-sm text-on-surface-variant truncate">
-            {[sheet.term_name, sheet.session_name].filter(Boolean).join(" · ") || "Current term"}
+            {[sheetData?.term?.name, sheetData?.session?.name].filter(Boolean).join(" · ") ||
+              "Current term"}
           </p>
         </div>
         <div className="shrink-0 text-right">
@@ -467,7 +469,7 @@ export default function ScoreEntry() {
       </div>
 
       {canEdit && (
-        <div className="sticky bottom-0 z-30 mt-space-sm rounded-2xl border border-outline-variant bg-surface-container-lowest/95 backdrop-blur px-space-sm pt-space-sm pb-space-sm pb-safe flex gap-space-sm shadow-md md:static md:border-0 md:bg-transparent md:shadow-none md:justify-end md:px-0 md:pb-0 md:pt-space-md">
+        <div className="sticky bottom-0 z-30 mt-space-sm rounded-2xl border border-outline-variant bg-surface-container-lowest/95 backdrop-blur px-space-sm pt-space-sm pb-space-sm mb-safe flex gap-space-sm shadow-md md:static md:border-0 md:bg-transparent md:shadow-none md:justify-end md:px-0 md:pb-0 md:pt-space-md md:mb-0">
           <button
             type="button"
             onClick={handleSave}
@@ -486,8 +488,6 @@ export default function ScoreEntry() {
           </button>
         </div>
       )}
-
-      {!canEdit && null}
 
       {confirmOpen && (
         <div

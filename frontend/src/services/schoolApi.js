@@ -1,6 +1,6 @@
 // School Result Compiler API. Thin wrappers over the existing authenticated helpers
 // in api.js, so the module reuses PathSync's token handling instead of its own.
-import { authGet, del, patch, post } from "./api.js";
+import { authGet, del, patch, post, put } from "./api.js";
 
 const q = (params) =>
   Object.entries(params)
@@ -51,8 +51,8 @@ export const saveConfig = (body) => post("/schools/me/assessment-config", body);
 
 // ---------- teaching ----------
 export const getResponsibilities = () => get("/schools/me/responsibilities");
-export const getSheet = (sheetId) => get(`/schools/me/sheets/${sheetId}`);
-export const saveScores = (sheetId, rows) => post(`/schools/me/sheets/${sheetId}/scores`, { rows });
+export const getSheet = (sheetId) => authGet(`/schools/me/sheets/${sheetId}`);
+export const saveScores = (sheetId, rows) => put(`/schools/me/sheets/${sheetId}/scores`, { rows });
 export const submitSheet = (sheetId) => post(`/schools/me/sheets/${sheetId}/submit`, {});
 export const reopenSheet = (sheetId, reason) => post(`/schools/me/sheets/${sheetId}/reopen`, { reason });
 export const returnSheet = (sheetId, reason) => post(`/schools/me/sheets/${sheetId}/return`, { reason });

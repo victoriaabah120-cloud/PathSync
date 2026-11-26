@@ -52,6 +52,7 @@ export async function send(method, path, body) {
 // Sends a POST request to the PathSync backend with the user's login token.
 export const post = (path, body) => send("POST", path, body);
 export const patch = (path, body) => send("PATCH", path, body);
+export const put = (path, body) => send("PUT", path, body);
 export const del = (path) => send("DELETE", path);
 
 // Authenticated GET: used where the answer depends on who is asking.

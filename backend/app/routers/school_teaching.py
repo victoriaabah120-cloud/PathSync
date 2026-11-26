@@ -163,6 +163,8 @@ def get_sheet(sheet_id: str, ctx: SchoolContext = Depends(require_staff)):
         "sheet": sheet,
         "subject": subject,
         "class": klass,
+        "term": first_row(db.table("src_terms").select("*").eq("id", sheet["term_id"]).limit(1)),
+        "session": first_row(db.table("src_sessions").select("*").eq("id", sheet["session_id"]).limit(1)),
         "config": config,
         "students": rows_out,
         "missing": missing,
