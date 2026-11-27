@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Loader from "../../components/Loader.jsx";
-import { getClassResults, getSchoolContext, listClasses } from "../../services/schoolApi.js";
+import {
+  getClassResults,
+  getSchoolContext,
+  listClasses,
+  listSubjects,
+  listTeachers,
+} from "../../services/schoolApi.js";
 import SchoolSetup from "./SchoolSetup.jsx";
 
 const ROLE_LABEL = {
@@ -41,12 +47,6 @@ const BAR_TONE = {
   full: "[&::-webkit-progress-value]:bg-error [&::-moz-progress-bar]:bg-error",
 };
 
-const CONTROLS = [
-  { to: "/school/manage?tab=teachers", icon: "person_add", title: "Teachers & Invites", note: "Staff accounts and assignments" },
-  { to: "/school/manage?tab=classes", icon: "groups", title: "Classes & Roster", note: "Arms, students and enrolment" },
-  { to: "/school/compiler", icon: "tune", title: "Grading Rules", note: "Assessment split, scale and ranking" },
-  { to: "/school/approvals", icon: "campaign", title: "Publish Results", note: "Approve and release results" },
-];
 
 function humanise(value) {
   if (!value) return "Member";
@@ -104,6 +104,8 @@ export default function AdminOverview() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [needsSetup, setNeedsSetup] = useState(false);
+  const [subjectCount, setSubjectCount] = useState(0);
+  const [teacherCount, setTeacherCount] = useState(0);
 
   async function load() {
     setLoading(true);
@@ -115,6 +117,16 @@ export default function AdminOverview() {
       const classPayload = await listClasses();
       const list = Array.isArray(classPayload) ? classPayload : classPayload.classes || [];
       setClasses(list);
+
+      // Counts for the setup checklist. A failure here must not block the dashboard.
+      const [subjectPayload, teacherPayload] = await Promise.all([
+        listSubjects().catch(() => null),
+        listTeachers().catch(() => null),
+      ]);
+      const subjectList = Array.isArray(subjectPayload) ? subjectPayload : subjectPayload?.subjects || [];
+      const teacherList = Array.isArray(teacherPayload) ? teacherPayload : teacherPayload?.teachers || [];
+      setSubjectCount(subjectList.length);
+      setTeacherCount(teacherList.filter((row) => row.status !== "invited").length);
 
       const statuses = await Promise.all(
         list.map(async (klass) => {
@@ -178,6 +190,47 @@ export default function AdminOverview() {
   }
 
   const usage = readUsage(context || {});
+  const studentCount = Number(usage.used || 0);
+  const setupSteps = [
+    {
+      id: "classes",
+      icon: "groups",
+      label: classes.length ? "Classes" : "Create your first class",
+      note: classes.length ? `${classes.length} class${classes.length === 1 ? "" : "es"} on record` : "For example JSS 1A",
+      to: "/school/manage?tab=classes",
+      done: classes.length > 0,
+      hint: "A class holds the students who sit the same subjects.",
+    },
+    {
+      id: "students",
+      icon: "badge",
+      label: studentCount ? "Students" : "Add your students",
+      note: studentCount ? `${studentCount} enrolled` : "Type them in, or upload a register",
+      to: "/school/manage?tab=classes",
+      done: studentCount > 0,
+      hint: "Register each class once and every subject reuses the list.",
+    },
+    {
+      id: "subjects",
+      icon: "menu_book",
+      label: subjectCount ? "Subjects" : "Choose subjects",
+      note: subjectCount ? `${subjectCount} subject${subjectCount === 1 ? "" : "s"} on record` : "Pick from the subject library",
+      to: "/school/manage?tab=subjects",
+      done: subjectCount > 0,
+      hint: "English, Mathematics, Basic Science and more are one tap away.",
+    },
+    {
+      id: "teachers",
+      icon: "person_add",
+      label: teacherCount ? "Teachers" : "Add your teachers",
+      note: teacherCount ? `${teacherCount} active` : "Name, email, classes and subjects in one form",
+      to: "/school/manage?tab=teachers",
+      done: teacherCount > 0,
+      hint: "One account can teach several classes and be a form teacher.",
+    },
+  ];
+  const nextStep = setupSteps.find((step) => !step.done) || null;
+
   const full = usage.capacity > 0 && usage.used >= usage.capacity;
   const nearFull = !full && usage.capacity > 0 && usage.percent >= 80;
   const barTone = full ? BAR_TONE.full : nearFull ? BAR_TONE.near : BAR_TONE.ok;
@@ -266,52 +319,50 @@ export default function AdminOverview() {
         )}
       </section>
 
-      <section className="bg-surface-container-lowest rounded-2xl p-space-lg shadow-md flex flex-col gap-space-sm">
+      <section className="flex flex-col gap-space-sm">
         <div className="flex items-center justify-between gap-space-sm">
-          <h2 className="font-headline-sm text-headline-sm font-bold text-on-surface">Subscription</h2>
-          <span className={`shrink-0 px-2.5 py-1 rounded-full font-label-sm text-label-sm font-bold ${subscriptionTone}`}>
-            {subscriptionLabel}
+          <h2 className="font-headline-sm text-headline-sm font-bold text-on-surface">Set up your school</h2>
+          <span className="shrink-0 px-2.5 py-1 rounded-full bg-surface-container-high font-label-sm text-label-sm text-on-surface-variant">
+            {setupSteps.filter((step) => step.done).length} of {setupSteps.length} done
           </span>
         </div>
-        <dl className="grid grid-cols-2 gap-space-sm">
-          <div className="min-w-0">
-            <dt className="font-label-sm text-label-sm text-on-surface-variant">Plan</dt>
-            <dd className="font-label-lg text-label-lg text-on-surface truncate">
-              {usage.unlimited ? "Not required while testing" : planName || "No plan"}
-            </dd>
-          </div>
-          <div className="min-w-0">
-            <dt className="font-label-sm text-label-sm text-on-surface-variant">
-              {subscriptionState === "expired" ? "Expired on" : "Renews"}
-            </dt>
-            <dd className="font-label-lg text-label-lg text-on-surface">
-              {dateOf(subscription?.current_period_end)}
-            </dd>
-          </div>
-        </dl>
-        <Link
-          to="/school/subscription"
-          className="h-11 rounded-xl border border-outline-variant font-label-lg text-label-lg text-on-surface flex items-center justify-center"
-        >
-          {subscription ? "Manage subscription" : "See plans"}
-        </Link>
-      </section>
 
-      <section className="flex flex-col gap-space-sm">
-        <h2 className="font-headline-sm text-headline-sm font-bold text-on-surface">Administrative Controls</h2>
-        <div className="grid grid-cols-2 gap-space-sm md:grid-cols-4">
-          {CONTROLS.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              className="bg-surface-container-lowest rounded-2xl p-space-md shadow-md flex flex-col gap-1 hover:bg-surface-container-low transition-colors"
-            >
-              <span className="material-symbols-outlined text-[22px] text-secondary">{item.icon}</span>
-              <span className="font-label-lg text-label-lg text-on-surface font-semibold">{item.title}</span>
-              <span className="font-label-sm text-label-sm text-on-surface-variant leading-tight">{item.note}</span>
-            </Link>
+        {nextStep ? (
+          <Link
+            to={nextStep.to}
+            className="bg-secondary text-on-secondary rounded-2xl p-space-lg shadow-md flex items-center justify-between gap-space-sm hover:bg-secondary-container transition-colors"
+          >
+            <span className="flex flex-col gap-0.5 min-w-0">
+              <span className="font-label-sm text-label-sm uppercase tracking-wide opacity-80">Next step</span>
+              <span className="font-headline-sm text-headline-sm font-bold truncate">{nextStep.label}</span>
+              <span className="font-body-sm text-body-sm opacity-90">{nextStep.hint}</span>
+            </span>
+            <span className="material-symbols-outlined text-[24px] shrink-0">arrow_forward</span>
+          </Link>
+        ) : (
+          <p className="rounded-2xl bg-surface-container-lowest p-space-md shadow-md font-body-sm text-body-sm text-on-surface-variant">
+            Setup is complete. Open a class below to compile results.
+          </p>
+        )}
+
+        <ul className="rounded-2xl bg-surface-container-lowest shadow-md divide-y divide-outline-variant overflow-hidden">
+          {setupSteps.map((step) => (
+            <li key={step.id}>
+              <Link to={step.to} className="flex items-center gap-space-sm px-space-md py-3 hover:bg-surface-container-low transition-colors">
+                <span
+                  className={`material-symbols-outlined text-[20px] shrink-0 ${step.done ? "text-secondary" : "text-on-surface-variant"}`}
+                >
+                  {step.done ? "check_circle" : step.icon}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-label-lg text-label-lg text-on-surface truncate">{step.label}</span>
+                  <span className="block font-label-sm text-label-sm text-on-surface-variant truncate">{step.note}</span>
+                </span>
+                <span className="material-symbols-outlined text-[18px] text-on-surface-variant shrink-0">chevron_right</span>
+              </Link>
+            </li>
           ))}
-        </div>
+        </ul>
       </section>
 
       <section className="flex flex-col gap-space-sm">
