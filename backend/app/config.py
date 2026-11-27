@@ -14,6 +14,11 @@ class Settings:
     supabase_service_role_key: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
     groq_api_key: str = os.getenv("GROQ_API_KEY", "").strip()
     groq_model: str = os.getenv("GROQ_MODEL", "").strip()
+    # Vision model used to read handwritten registers and score sheets. It runs on the
+    # same Groq key, so no extra credential or billing account is needed.
+    groq_vision_model: str = os.getenv(
+        "GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct"
+    ).strip()
     frontend_url: str = os.getenv("FRONTEND_URL", PRODUCTION_FRONTEND_URL).strip().rstrip("/")
     paystack_secret_key: str = os.getenv("PAYSTACK_SECRET_KEY", "").strip()
     paystack_public_key: str = os.getenv("PAYSTACK_PUBLIC_KEY", "").strip()

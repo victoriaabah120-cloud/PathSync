@@ -45,6 +45,12 @@ export const createClassSubject = (body) => post("/schools/me/class-subjects", b
 // ---------- people ----------
 export const listStudents = (params) => get("/schools/me/students", params);
 export const createStudent = (body) => post("/schools/me/students", body);
+export const parseRegister = (filename, contentBase64) =>
+  post("/schools/me/students/parse-register", { filename, content_base64: contentBase64 });
+export const scanRegister = (imageBase64, mimeType = "image/jpeg") =>
+  post("/schools/me/students/scan-register", { image_base64: imageBase64, mime_type: mimeType });
+export const importStudents = (body) => post("/schools/me/students/import", body);
+export const createTeacher = (body) => post("/schools/me/teachers", body);
 export const updateStudent = (id, body) => patch(`/schools/me/students/${id}`, body);
 export const listTeachers = () => get("/schools/me/teachers");
 export const inviteTeacher = (email, fullName) =>

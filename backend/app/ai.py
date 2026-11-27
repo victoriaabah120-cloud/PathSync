@@ -48,3 +48,35 @@ def ask_text(system: str, messages: list[dict], temperature: float = 0.5, max_to
         return (completion.choices[0].message.content or "").strip()
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"The AI request failed: {exc}")
+
+
+def ask_vision_json(
+    system: str,
+    user: str,
+    image_data_url: str,
+    temperature: float = 0.1,
+    max_tokens: int = 2000,
+) -> dict:
+    """Read an image and answer in JSON. Used for handwritten registers and sheets."""
+    try:
+        completion = _get_client().chat.completions.create(
+            model=settings.groq_vision_model,
+            messages=[
+                {"role": "system", "content": system},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": user},
+                        {"type": "image_url", "image_url": {"url": image_data_url}},
+                    ],
+                },
+            ],
+            temperature=temperature,
+            max_tokens=max_tokens,
+            response_format={"type": "json_object"},
+        )
+        return json.loads(completion.choices[0].message.content)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=502, detail="The page could not be read. Try a clearer photograph.")
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"The image could not be read: {exc}")

@@ -9,12 +9,14 @@ import {
   dateOf,
   humanise,
 } from "../../components/school/SchoolKit.jsx";
+import StudentImport from "../../components/school/StudentImport.jsx";
 import {
   createClass,
   createSession,
   createStudent,
   createSubject,
   getSubjectLibrary,
+  createTeacher,
   createTerm,
   inviteTeacher,
   listClasses,
@@ -161,6 +163,7 @@ export default function Manage() {
           busy={busy}
           onCreate={(body) => run("student", () => createStudent(body), "Student enrolled.")}
           onStatus={(id, status) => run(`status-${id}`, () => updateStudent(id, { status }), "Student updated.")}
+          onReload={load}
         />
       )}
       {tab === "subjects" && (
@@ -173,7 +176,11 @@ export default function Manage() {
       {tab === "teachers" && (
         <TeachersTab
           teachers={teachers}
+          classes={classes}
+          subjects={subjects}
+          sessionId={(sessions.find((item) => item.is_current) || sessions[0] || {}).id}
           busy={busy}
+          onCreate={(body) => run("teacher", () => createTeacher(body), "Teacher saved with their classes and subjects.")}
           onInvite={(email, name) => run("invite", () => inviteTeacher(email, name), "Invitation sent.")}
         />
       )}
@@ -253,12 +260,48 @@ function ClassesTab({ classes, busy, onCreate }) {
   );
 }
 
-function StudentsTab({ students, classes, busy, onCreate, onStatus }) {
+function StudentsTab({ students, classes, busy, onCreate, onStatus, onReload }) {
   const [form, setForm] = useState({ admission_no: "", first_name: "", last_name: "", gender: "" });
+  const [importClassId, setImportClassId] = useState(classes[0]?.id || "");
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
 
   return (
     <>
+      <SectionCard>
+        <SectionTitle icon="upload_file" title="Register a whole class at once" note="Photograph or spreadsheet" />
+        {classes.length === 0 ? (
+          <div className="mt-3">
+            <EmptyState icon="groups" title="Add a class first">
+              Students are registered into a class, so create one above.
+            </EmptyState>
+          </div>
+        ) : (
+          <div className="mt-3">
+            <Field label="Which class is this list for?">
+              <select
+                className={inputClass}
+                value={importClassId}
+                onChange={(event) => setImportClassId(event.target.value)}
+                aria-label="Class for the imported list"
+              >
+                {classes.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+        )}
+      </SectionCard>
+
+      {classes.length > 0 && (
+        <StudentImport
+          classId={importClassId}
+          roster={students.filter((item) => !importClassId || item.class_id === importClassId || !item.class_id)}
+          onDone={onReload}
+        />
+      )}
       <SectionCard>
         <SectionTitle
           icon="school"
@@ -481,9 +524,16 @@ function SubjectsTab({ subjects, busy, onCreate }) {
   );
 }
 
-function TeachersTab({ teachers, busy, onInvite }) {
-  const [email, setEmail] = useState("");
-  const [fullName, setFullName] = useState("");
+function TeachersTab({ teachers, classes, subjects, sessionId, busy, onCreate }) {
+  const [form, setForm] = useState({ full_name: "", email: "", phone: "", class_ids: [], subject_ids: [], form_class_ids: [] });
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const toggle = (key, id) =>
+    setForm((current) => ({
+      ...current,
+      [key]: current[key].includes(id) ? current[key].filter((item) => item !== id) : [...current[key], id],
+    }));
+  const combinations = form.class_ids.length * form.subject_ids.length + form.form_class_ids.length;
 
   return (
     <>
@@ -491,21 +541,31 @@ function TeachersTab({ teachers, busy, onInvite }) {
         <SectionTitle icon="badge" title="Teachers" note={`${teachers.length} on record`} />
         {teachers.length === 0 ? (
           <EmptyState icon="badge" title="No teachers yet">
-            Invite a teacher by email. One account can hold subject and form-teacher duties.
+            Add a teacher below: their details, the classes and subjects they handle.
           </EmptyState>
         ) : (
           <ul className="mt-3 divide-y divide-white/5">
             {teachers.map((item) => (
-              <li key={item.id || item.email} className="flex items-center justify-between gap-3 py-2.5">
-                <div className="min-w-0">
+              <li key={item.id || item.email} className="py-2.5">
+                <div className="flex items-center justify-between gap-3">
                   <p className="truncate font-body-md text-body-md text-on-surface">
-                    {item.name || item.full_name || item.email}
+                    {item.full_name || item.name || item.invited_email || item.email}
                   </p>
-                  <p className="truncate font-label-sm text-label-sm text-on-surface-variant">{item.email}</p>
+                  <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 font-label-sm text-label-sm text-on-surface-variant">
+                    {humanise(item.status || item.role || "invited")}
+                  </span>
                 </div>
-                <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 font-label-sm text-label-sm text-on-surface-variant">
-                  {humanise(item.status || item.role || "invited")}
-                </span>
+                <p className="mt-0.5 font-label-sm text-label-sm text-on-surface-variant">
+                  {(item.responsibilities || []).length
+                    ? item.responsibilities
+                        .map((duty) =>
+                          duty.kind === "form"
+                            ? `Form teacher, ${duty.class_name}`
+                            : `${duty.subject_name} · ${duty.class_name}`
+                        )
+                        .join(" · ")
+                    : "No classes or subjects assigned yet"}
+                </p>
               </li>
             ))}
           </ul>
@@ -513,37 +573,134 @@ function TeachersTab({ teachers, busy, onInvite }) {
       </SectionCard>
 
       <SectionCard>
-        <SectionTitle icon="mail" title="Invite a teacher" />
+        <SectionTitle icon="person_add" title="Add a teacher" note="One form, one account" />
         <form
           className="mt-3 space-y-3"
           onSubmit={async (event) => {
             event.preventDefault();
-            if (!email.trim()) return;
-            const ok = await onInvite(email.trim(), fullName.trim());
+            setMessage("");
+            setError("");
+            if (!form.full_name.trim() || !form.email.trim()) return;
+            if (!sessionId) {
+              setError("Create the academic session first, on the Sessions tab.");
+              return;
+            }
+            const ok = await onCreate({ ...form, session_id: sessionId, full_name: form.full_name.trim(), email: form.email.trim() });
             if (ok) {
-              setEmail("");
-              setFullName("");
+              setMessage(`Saved. Share this activation code with ${form.full_name.trim()}: the teacher creates an account, then enters the code.`);
+              setForm({ full_name: "", email: "", phone: "", class_ids: [], subject_ids: [], form_class_ids: [] });
             }
           }}
         >
-          <Field label="Email address">
+          <Field label="Teacher's name">
             <input
-              type="email"
               className={inputClass}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="teacher@school.com"
+              value={form.full_name}
+              onChange={(event) => setForm((current) => ({ ...current, full_name: event.target.value }))}
+              placeholder="Mrs Ada Obi"
             />
           </Field>
-          <Field label="Full name" hint="Optional. Helps the invitation read well.">
-            <input className={inputClass} value={fullName} onChange={(e) => setFullName(e.target.value)} />
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Email address">
+              <input
+                type="email"
+                className={inputClass}
+                value={form.email}
+                onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+                placeholder="ada@school.com"
+              />
+            </Field>
+            <Field label="Phone" hint="Optional.">
+              <input
+                className={inputClass}
+                value={form.phone}
+                onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
+                placeholder="0803..."
+              />
+            </Field>
+          </div>
+
+          <Field label="Classes they teach" hint="Tick every class they handle.">
+            {classes.length === 0 ? (
+              <p className="font-label-sm text-label-sm text-on-surface-variant">Add a class first.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {classes.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => toggle("class_ids", item.id)}
+                    className={`rounded-full px-3 py-1.5 font-label-sm text-label-sm ${
+                      form.class_ids.includes(item.id)
+                        ? "bg-secondary text-on-secondary"
+                        : "border border-white/15 bg-white/[0.04] text-on-surface"
+                    }`}
+                  >
+                    {item.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </Field>
+
+          <Field label="Subjects they teach" hint="Tick every subject they teach.">
+            {subjects.length === 0 ? (
+              <p className="font-label-sm text-label-sm text-on-surface-variant">Add subjects first, on the Subjects tab.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {subjects.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => toggle("subject_ids", item.id)}
+                    className={`rounded-full px-3 py-1.5 font-label-sm text-label-sm ${
+                      form.subject_ids.includes(item.id)
+                        ? "bg-secondary text-on-secondary"
+                        : "border border-white/15 bg-white/[0.04] text-on-surface"
+                    }`}
+                  >
+                    {item.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </Field>
+
+          <Field label="Form classes" hint="Tick any class where they are the form teacher.">
+            {classes.length === 0 ? null : (
+              <div className="flex flex-wrap gap-2">
+                {classes.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => toggle("form_class_ids", item.id)}
+                    className={`rounded-full px-3 py-1.5 font-label-sm text-label-sm ${
+                      form.form_class_ids.includes(item.id)
+                        ? "bg-secondary text-on-secondary"
+                        : "border border-white/15 bg-white/[0.04] text-on-surface"
+                    }`}
+                  >
+                    {item.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </Field>
+
+          {combinations > 0 && (
+            <p className="font-label-sm text-label-sm text-on-surface-variant">
+              This saves {combinations} responsibility{combinations === 1 ? "" : "ies"} under one teacher account.
+            </p>
+          )}
+          {error && <p className="rounded-xl bg-error-container px-3 py-2 font-body-sm text-body-sm text-on-error-container">{error}</p>}
+          {message && <Notice>{message}</Notice>}
+
           <button
             type="submit"
-            disabled={busy === "invite" || !email.trim()}
+            disabled={busy === "teacher" || !form.full_name.trim() || !form.email.trim()}
             className="w-full rounded-xl bg-secondary px-4 py-2.5 font-label-md text-label-md text-on-secondary disabled:opacity-50"
           >
-            {busy === "invite" ? "Inviting..." : "Send invitation"}
+            {busy === "teacher" ? "Saving..." : "Save teacher"}
           </button>
         </form>
       </SectionCard>

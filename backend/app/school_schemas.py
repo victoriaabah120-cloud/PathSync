@@ -74,6 +74,39 @@ class StudentUpdate(BaseModel):
     status: str | None = Field(default=None, pattern="^(active|graduated|withdrawn)$")
 
 
+class RegisterUpload(BaseModel):
+    filename: str = Field(default="register.csv", max_length=200)
+    content_base64: str = Field(min_length=16)
+
+
+class RegisterPhoto(BaseModel):
+    image_base64: str = Field(min_length=16)
+    mime_type: str = Field(default="image/jpeg", max_length=60)
+
+
+class StudentBulkRow(BaseModel):
+    first_name: str = Field(min_length=1, max_length=60)
+    last_name: str = Field(default="", max_length=60)
+    middle_name: str = Field(default="", max_length=60)
+    admission_no: str = Field(default="", max_length=40)
+
+
+class StudentBulkImport(BaseModel):
+    class_id: str
+    session_id: str | None = None
+    students: list[StudentBulkRow] = Field(min_length=1, max_length=300)
+
+
+class TeacherCreate(BaseModel):
+    full_name: str = Field(min_length=2, max_length=120)
+    email: str = Field(min_length=3, max_length=160, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    phone: str = Field(default="", max_length=40)
+    session_id: str
+    class_ids: list[str] = Field(default_factory=list, max_length=20)
+    subject_ids: list[str] = Field(default_factory=list, max_length=30)
+    form_class_ids: list[str] = Field(default_factory=list, max_length=10)
+
+
 class TeacherInvite(BaseModel):
     email: str = Field(min_length=3, max_length=160, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
     full_name: str = Field(default="", max_length=120)

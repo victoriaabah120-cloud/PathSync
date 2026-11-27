@@ -6,6 +6,7 @@ import secrets
 from fastapi import APIRouter, Depends, HTTPException
 
 from ..auth import get_current_user, get_supabase
+from ..school_import import rows_from_photograph, rows_from_spreadsheet
 from ..subject_library import search as search_library
 from ..school_schemas import (
     AssignmentCreate,
@@ -15,7 +16,11 @@ from ..school_schemas import (
     JoinSchool,
     ReasonBody,
     SessionCreate,
+    RegisterPhoto,
+    RegisterUpload,
+    StudentBulkImport,
     StudentCreate,
+    TeacherCreate,
     StudentUpdate,
     SubjectCreate,
     TeacherInvite,
@@ -254,6 +259,97 @@ def list_class_subjects(session_id: str, class_id: str, ctx: SchoolContext = Dep
 # ---------------------------------------------------------------------------
 # Students
 # ---------------------------------------------------------------------------
+@router.post("/schools/me/students/parse-register")
+def parse_register(body: RegisterUpload, ctx: SchoolContext = Depends(require_admin)):
+    """Read a spreadsheet register into rows for review. Saves nothing."""
+    return rows_from_spreadsheet(body.filename, body.content_base64)
+
+
+@router.post("/schools/me/students/scan-register")
+def scan_register(body: RegisterPhoto, ctx: SchoolContext = Depends(require_admin)):
+    """Read a photographed handwritten register into rows for review. Saves nothing."""
+    return rows_from_photograph(body.image_base64, body.mime_type)
+
+
+@router.post("/schools/me/students/import")
+def import_students(body: StudentBulkImport, ctx: SchoolContext = Depends(require_admin)):
+    """Register reviewed rows in one go.
+
+    Students already in the school (same admission number, or the same full name) are
+    skipped and reported rather than duplicated. A blank admission number is filled
+    with the next free ADM number and the response says so, so nothing is invented
+    quietly.
+    """
+    db = get_supabase()
+    klass = first_row(
+        db.table("src_classes").select("*").eq("id", body.class_id).eq("school_id", ctx.school_id).limit(1)
+    )
+    if not klass:
+        raise HTTPException(status_code=404, detail="That class is not in this school.")
+    ensure_capacity(ctx, adding=len(body.students))
+
+    session_id = body.session_id or active_session(db, ctx.school_id)["id"]
+    existing = rows(db.table("src_students").select("id,admission_no,first_name,last_name").eq("school_id", ctx.school_id))
+    taken_admissions = {str(row.get("admission_no") or "").strip().lower() for row in existing}
+    taken_names = {
+        " ".join(filter(None, [row.get("first_name"), row.get("last_name")])).strip().lower() for row in existing
+    }
+
+    created, skipped, assigned = [], [], 0
+    counter = len(existing) + 1
+    for row in body.students:
+        name = " ".join(filter(None, [row.first_name.strip(), row.last_name.strip()])).strip()
+        key = name.lower()
+        admission = row.admission_no.strip()
+        if admission and admission.lower() in taken_admissions:
+            skipped.append({"name": name, "reason": "Admission number already used"})
+            continue
+        if key in taken_names:
+            skipped.append({"name": name, "reason": "Already registered"})
+            continue
+        if not admission:
+            while f"adm-{counter:04d}" in taken_admissions:
+                counter += 1
+            admission = f"ADM-{counter:04d}"
+            counter += 1
+            assigned += 1
+        student = _one(
+            db.table("src_students")
+            .insert(
+                {
+                    "school_id": ctx.school_id,
+                    "admission_no": admission,
+                    "first_name": row.first_name.strip(),
+                    "last_name": row.last_name.strip(),
+                    "middle_name": row.middle_name.strip(),
+                    "invite_code": secrets.token_urlsafe(8),
+                    "status": "active",
+                }
+            )
+            .execute()
+            .data
+        )
+        db.table("src_enrolments").insert(
+            {
+                "school_id": ctx.school_id,
+                "student_id": student["id"],
+                "class_id": body.class_id,
+                "session_id": session_id,
+                "status": "active",
+            }
+        ).execute()
+        taken_admissions.add(admission.lower())
+        taken_names.add(key)
+        student["name"] = full_name(student)
+        created.append(student)
+    return {
+        "created": created,
+        "skipped": skipped,
+        "assigned_admissions": assigned,
+        "class": {"id": klass["id"], "name": klass["name"]},
+    }
+
+
 @router.post("/schools/me/students")
 def create_student(body: StudentCreate, ctx: SchoolContext = Depends(require_admin)):
     db = get_supabase()
@@ -372,6 +468,93 @@ def invite_teacher(body: TeacherInvite, ctx: SchoolContext = Depends(require_adm
         .data
     )
     return {"member": created, "invite_code": code, "resent": False}
+
+
+@router.post("/schools/me/teachers")
+def create_teacher(body: TeacherCreate, ctx: SchoolContext = Depends(require_admin)):
+    """One form: the teacher, the classes and subjects they handle, and form classes.
+
+    Creates the invitation and every responsibility together, so the administrator
+    never has to repeat the setup in a second screen. A teacher keeps one account and
+    can hold as many responsibilities as the school gives them.
+    """
+    db = get_supabase()
+    email = str(body.email).lower().strip()
+    existing = first_row(
+        db.table("src_school_members").select("*").eq("school_id", ctx.school_id).eq("invited_email", email).limit(1)
+    )
+    if existing and existing.get("status") == "active":
+        raise HTTPException(status_code=409, detail="That teacher is already part of this school.")
+
+    class_ids = [cid for cid in dict.fromkeys(body.class_ids) if cid]
+    subject_ids = [sid for sid in dict.fromkeys(body.subject_ids) if sid]
+    form_ids = [cid for cid in dict.fromkeys(body.form_class_ids) if cid]
+    if class_ids:
+        found = rows(db.table("src_classes").select("id").eq("school_id", ctx.school_id).in_("id", class_ids))
+        if len(found) != len(class_ids):
+            raise HTTPException(status_code=404, detail="One of those classes is not in this school.")
+    if subject_ids:
+        found = rows(db.table("src_subjects").select("id").eq("school_id", ctx.school_id).in_("id", subject_ids))
+        if len(found) != len(subject_ids):
+            raise HTTPException(status_code=404, detail="One of those subjects is not in this school.")
+
+    code = (existing or {}).get("invite_code") or secrets.token_urlsafe(9)
+    if existing:
+        member = _one(
+            db.table("src_school_members")
+            .update({"invited_email": email, "status": "invited", "invite_code": code, "full_name": body.full_name.strip()})
+            .eq("id", existing["id"])
+            .execute()
+            .data
+        )
+    else:
+        member = _one(
+            db.table("src_school_members")
+            .insert(
+                {
+                    "school_id": ctx.school_id,
+                    "role": "teacher",
+                    "status": "invited",
+                    "invited_email": email,
+                    "full_name": body.full_name.strip(),
+                    "invited_by": ctx.user.id,
+                    "invite_code": code,
+                }
+            )
+            .execute()
+            .data
+        )
+
+    wanted = [
+        {"class_id": class_id, "subject_id": subject_id, "kind": "subject"}
+        for class_id in class_ids
+        for subject_id in subject_ids
+    ] + [{"class_id": class_id, "subject_id": None, "kind": "form"} for class_id in form_ids]
+
+    have = rows(db.table("src_assignments").select("*").eq("school_id", ctx.school_id).eq("member_id", member["id"]))
+    seen = {(a["class_id"], a.get("subject_id"), a["kind"]) for a in have}
+    created = []
+    for item in wanted:
+        if (item["class_id"], item["subject_id"], item["kind"]) in seen:
+            continue
+        created.append(
+            _one(
+                db.table("src_assignments")
+                .insert(
+                    {
+                        "school_id": ctx.school_id,
+                        "session_id": body.session_id,
+                        "member_id": member["id"],
+                        "class_id": item["class_id"],
+                        "subject_id": item["subject_id"],
+                        "kind": item["kind"],
+                    }
+                )
+                .execute()
+                .data
+            )
+        )
+    return {"member": member, "invite_code": code, "assignments": created, "responsibilities": len(created) + len(have)}
 
 
 @router.get("/schools/me/teachers")
