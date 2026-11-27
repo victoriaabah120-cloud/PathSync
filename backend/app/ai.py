@@ -50,6 +50,25 @@ def ask_text(system: str, messages: list[dict], temperature: float = 0.5, max_to
         raise HTTPException(status_code=502, detail=f"The AI request failed: {exc}")
 
 
+# Vision models are tried in this order. Which ones a key can use depends on the
+# account, so the first that answers is remembered for the rest of the process.
+VISION_CANDIDATES = (
+    "meta-llama/llama-4-maverick-17b-128e-instruct",
+    "meta-llama/llama-4-scout-17b-16e-instruct",
+    "qwen/qwen3-vl-235b-a22b-instruct",
+    "qwen/qwen2.5-vl-72b-instruct",
+)
+
+_vision_model: str | None = None
+
+
+def vision_models() -> list[str]:
+    configured = settings.groq_vision_model
+    if _vision_model:
+        return [_vision_model]
+    return [name for name in dict.fromkeys([configured, *VISION_CANDIDATES]) if name]
+
+
 def ask_vision_json(
     system: str,
     user: str,
@@ -58,25 +77,42 @@ def ask_vision_json(
     max_tokens: int = 2000,
 ) -> dict:
     """Read an image and answer in JSON. Used for handwritten registers and sheets."""
-    try:
-        completion = _get_client().chat.completions.create(
-            model=settings.groq_vision_model,
-            messages=[
-                {"role": "system", "content": system},
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": user},
-                        {"type": "image_url", "image_url": {"url": image_data_url}},
-                    ],
-                },
-            ],
-            temperature=temperature,
-            max_tokens=max_tokens,
-            response_format={"type": "json_object"},
-        )
-        return json.loads(completion.choices[0].message.content)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=502, detail="The page could not be read. Try a clearer photograph.")
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"The image could not be read: {exc}")
+    global _vision_model
+    tried: list[str] = []
+    for model in vision_models():
+        try:
+            completion = _get_client().chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system},
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": user},
+                            {"type": "image_url", "image_url": {"url": image_data_url}},
+                        ],
+                    },
+                ],
+                temperature=temperature,
+                max_tokens=max_tokens,
+                response_format={"type": "json_object"},
+            )
+            _vision_model = model
+            return json.loads(completion.choices[0].message.content)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=502, detail="The page could not be read. Try a clearer photograph.")
+        except Exception as exc:
+            message = str(exc).lower()
+            unavailable = any(
+                token in message
+                for token in ("model_not_found", "does not exist", "do not have access", "decommissioned", "not supported")
+            )
+            tried.append(f"{model}: {str(exc)[:80]}")
+            if unavailable:
+                continue
+            raise HTTPException(status_code=502, detail=f"The image could not be read: {exc}")
+    raise HTTPException(
+        status_code=503,
+        detail="No vision model is available on this Groq key. Set GROQ_VISION_MODEL to one the key can use. "
+        + " | ".join(tried[-2:]),
+    )
