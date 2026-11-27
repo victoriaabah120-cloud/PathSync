@@ -364,21 +364,29 @@ function SubjectsTab({ subjects, busy, onCreate }) {
 
   // The library is server data: it marks what the school already has and matches the
   // search on name or code, so nothing is hardcoded in the browser.
-  useEffect(() => {
-    let alive = true;
-    getSubjectLibrary(query)
-      .then((data) => {
-        if (!alive) return;
+  const loadLibrary = useCallback(
+    async (search = query) => {
+      try {
+        const data = await getSubjectLibrary(search);
         setLibrary(Array.isArray(data) ? data : data.subjects || []);
         setLibraryError("");
-      })
-      .catch((error) => {
-        if (alive) setLibraryError(error.message || "The subject library could not be loaded.");
-      });
-    return () => {
-      alive = false;
-    };
-  }, [query, subjects.length]);
+      } catch (error) {
+        setLibraryError(error.message || "The subject library could not be loaded.");
+      }
+    },
+    [query]
+  );
+
+  useEffect(() => {
+    loadLibrary(query);
+  }, [query, subjects.length, loadLibrary]);
+
+  // Adding from the library refreshes it straight away, so the row reads Added
+  // without waiting for the page to reload.
+  async function addFromLibrary(item) {
+    const ok = await onCreate({ name: item.name, code: item.code });
+    if (ok) await loadLibrary(query);
+  }
 
   return (
     <>
@@ -425,7 +433,7 @@ function SubjectsTab({ subjects, busy, onCreate }) {
                   <button
                     type="button"
                     disabled={busy === "subject"}
-                    onClick={() => onCreate({ name: item.name, code: item.code })}
+                    onClick={() => addFromLibrary(item)}
                     className="shrink-0 rounded-xl border border-outline-variant px-3 py-1.5 font-label-md text-label-md text-on-surface disabled:opacity-50"
                   >
                     Add
