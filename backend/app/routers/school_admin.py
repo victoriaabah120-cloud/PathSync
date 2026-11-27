@@ -259,6 +259,15 @@ def list_class_subjects(session_id: str, class_id: str, ctx: SchoolContext = Dep
 # ---------------------------------------------------------------------------
 # Students
 # ---------------------------------------------------------------------------
+@router.get("/schools/me/vision-models")
+def vision_models(ctx: SchoolContext = Depends(require_admin)):
+    """Which models this deployment's AI key can use. Used when a photograph fails."""
+    from ..ai import available_models
+
+    models = available_models()
+    return {"models": models, "vision": [m for m in models if any(h in m.lower() for h in ("vision", "-vl", "llama-4", "maverick", "scout"))]}
+
+
 @router.post("/schools/me/students/parse-register")
 def parse_register(body: RegisterUpload, ctx: SchoolContext = Depends(require_admin)):
     """Read a spreadsheet register into rows for review. Saves nothing."""

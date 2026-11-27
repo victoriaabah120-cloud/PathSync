@@ -62,11 +62,27 @@ VISION_CANDIDATES = (
 _vision_model: str | None = None
 
 
+VISION_HINTS = ("vision", "-vl", "llama-4", "maverick", "scout", "pixtral", "gemma-3")
+
+
+def available_models() -> list[str]:
+    """Every model id the configured key can use, as the provider reports them."""
+    try:
+        return [getattr(model, "id", "") for model in _get_client().models.list().data]
+    except Exception:
+        return []
+
+
+def available_vision_models() -> list[str]:
+    return [name for name in available_models() if any(hint in name.lower() for hint in VISION_HINTS)]
+
+
 def vision_models() -> list[str]:
-    configured = settings.groq_vision_model
+    """Configured model first, then anything the key reports as vision-capable."""
     if _vision_model:
         return [_vision_model]
-    return [name for name in dict.fromkeys([configured, *VISION_CANDIDATES]) if name]
+    candidates = [settings.groq_vision_model, *available_vision_models(), *VISION_CANDIDATES]
+    return [name for name in dict.fromkeys(candidates) if name]
 
 
 def ask_vision_json(
