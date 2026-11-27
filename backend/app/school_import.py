@@ -14,7 +14,7 @@ import re
 
 from fastapi import HTTPException
 
-from .ai import ask_vision_json
+from .vision import read_image_json
 
 MAX_BYTES = 8 * 1024 * 1024
 NAME_HEADERS = {"name", "names", "student", "student name", "students", "full name", "pupil", "pupil name"}
@@ -143,7 +143,7 @@ def rows_from_photograph(image_base64: str, mime_type: str = "image/jpeg") -> di
     if len(raw) < 1024:
         raise HTTPException(status_code=422, detail="That image is too small to read. Take a closer photograph.")
     data_url = f"data:{mime_type or 'image/jpeg'};base64,{base64.b64encode(raw).decode()}"
-    data = ask_vision_json(VISION_SYSTEM, VISION_PROMPT, data_url, max_tokens=2500)
+    data = read_image_json(VISION_SYSTEM, VISION_PROMPT, data_url, max_tokens=2500)
     students = data.get("students") if isinstance(data, dict) else None
     if not isinstance(students, list) or not students:
         raise HTTPException(status_code=422, detail="No names could be read. Try a brighter, straighter photograph.")

@@ -16,6 +16,10 @@ class Settings:
     groq_model: str = os.getenv("GROQ_MODEL", "").strip()
     # Vision model used to read handwritten registers and score sheets. It runs on the
     # same Groq key, so no extra credential or billing account is needed.
+    # Google AI Studio key for reading photographs of handwritten registers. Optional:
+    # without it the app falls back to a Groq vision model, and the spreadsheet import
+    # works either way.
+    gemini_api_key: str = os.getenv("GEMINI_API_KEY", "").strip()
     groq_vision_model: str = os.getenv(
         "GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct"
     ).strip()
