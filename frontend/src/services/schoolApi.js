@@ -36,6 +36,8 @@ export const createTerm = (body) => post("/schools/me/terms", body);
 export const listClasses = () => get("/schools/me/classes");
 export const createClass = (body) => post("/schools/me/classes", body);
 export const listSubjects = () => get("/schools/me/subjects");
+export const getSubjectLibrary = (query = "") =>
+  get("/schools/subject-library", query ? { query } : undefined);
 export const createSubject = (body) => post("/schools/me/subjects", body);
 export const listClassSubjects = (params) => get("/schools/me/class-subjects", params);
 export const createClassSubject = (body) => post("/schools/me/class-subjects", body);

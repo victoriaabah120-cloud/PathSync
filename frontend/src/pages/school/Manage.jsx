@@ -14,6 +14,7 @@ import {
   createSession,
   createStudent,
   createSubject,
+  getSubjectLibrary,
   createTerm,
   inviteTeacher,
   listClasses,
@@ -357,6 +358,27 @@ function StudentsTab({ students, classes, busy, onCreate, onStatus }) {
 function SubjectsTab({ subjects, busy, onCreate }) {
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
+  const [query, setQuery] = useState("");
+  const [library, setLibrary] = useState([]);
+  const [libraryError, setLibraryError] = useState("");
+
+  // The library is server data: it marks what the school already has and matches the
+  // search on name or code, so nothing is hardcoded in the browser.
+  useEffect(() => {
+    let alive = true;
+    getSubjectLibrary(query)
+      .then((data) => {
+        if (!alive) return;
+        setLibrary(Array.isArray(data) ? data : data.subjects || []);
+        setLibraryError("");
+      })
+      .catch((error) => {
+        if (alive) setLibraryError(error.message || "The subject library could not be loaded.");
+      });
+    return () => {
+      alive = false;
+    };
+  }, [query, subjects.length]);
 
   return (
     <>
@@ -379,7 +401,47 @@ function SubjectsTab({ subjects, busy, onCreate }) {
       </SectionCard>
 
       <SectionCard>
-        <SectionTitle icon="add" title="Add a subject" />
+        <SectionTitle icon="search" title="Subject library" note="Tap to add" />
+        <input
+          className={`${inputClass} mt-3`}
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search Mathematics, ENG, Basic Science..."
+          aria-label="Search the subject library"
+        />
+        {libraryError ? (
+          <p className="mt-2 font-body-sm text-body-sm text-error">{libraryError}</p>
+        ) : (
+          <ul className="mt-2 max-h-72 overflow-y-auto divide-y divide-white/5">
+            {library.map((item) => (
+              <li key={item.code} className="flex items-center justify-between gap-3 py-2">
+                <span className="min-w-0">
+                  <span className="block truncate font-body-md text-body-md text-on-surface">{item.name}</span>
+                  <span className="block font-label-sm text-label-sm text-on-surface-variant">{item.code}</span>
+                </span>
+                {item.added ? (
+                  <span className="shrink-0 font-label-sm text-label-sm text-secondary">Added</span>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={busy === "subject"}
+                    onClick={() => onCreate({ name: item.name, code: item.code })}
+                    className="shrink-0 rounded-xl border border-outline-variant px-3 py-1.5 font-label-md text-label-md text-on-surface disabled:opacity-50"
+                  >
+                    Add
+                  </button>
+                )}
+              </li>
+            ))}
+            {library.length === 0 && (
+              <li className="py-3 font-body-sm text-body-sm text-on-surface-variant">No subject matches that search.</li>
+            )}
+          </ul>
+        )}
+      </SectionCard>
+
+      <SectionCard>
+        <SectionTitle icon="add" title="Add a subject that is not in the library" />
         <form
           className="mt-3 space-y-3"
           onSubmit={async (event) => {

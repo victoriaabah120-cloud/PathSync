@@ -6,6 +6,7 @@ import secrets
 from fastapi import APIRouter, Depends, HTTPException
 
 from ..auth import get_current_user, get_supabase
+from ..subject_library import search as search_library
 from ..school_schemas import (
     AssignmentCreate,
     ClassCreate,
@@ -195,6 +196,18 @@ def create_subject(body: SubjectCreate, ctx: SchoolContext = Depends(require_adm
         .data
     )
     return {"subject": created}
+
+
+@router.get("/schools/subject-library")
+def subject_library(query: str = "", ctx: SchoolContext = Depends(get_school_context)):
+    """The built-in subject list, with a flag for the ones this school already has.
+
+    Search matches the name or the code, so typing "math" or "MTH" finds Mathematics.
+    """
+    db = get_supabase()
+    mine = rows(db.table("src_subjects").select("name").eq("school_id", ctx.school_id))
+    taken = {row.get("name") for row in mine}
+    return {"subjects": search_library(query, taken)}
 
 
 @router.get("/schools/me/subjects")
